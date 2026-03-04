@@ -258,9 +258,10 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
     except Exception as e:
         logger.warning(f"Sort button: {e}")
         return
-    time.sleep(1.5)  # Let sort bottom sheet fully open
+    time.sleep(0.8)  # Let sort bottom sheet open
     # Tap "Discounts" in the sort bottom sheet (Sort by page)
     discounts_clicked = False
+    wait_disc = WebDriverWait(driver, 3)
     for discount_loc in [
         SearchPageLocators.SORT_DISCOUNTS,
         (AppiumBy.XPATH, "//*[contains(@text,'Discount') or contains(@text,'discount')]"),
@@ -268,7 +269,7 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
         (AppiumBy.XPATH, "//*[starts-with(@text,'Discount') or @text='Discounts']"),
     ]:
         try:
-            el = WebDriverWait(driver, 5).until(EC.element_to_be_clickable(discount_loc))
+            el = wait_disc.until(EC.element_to_be_clickable(discount_loc))
             if el and el.is_displayed():
                 el.click()
                 print("Discounts selected")
