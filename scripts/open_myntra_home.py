@@ -665,14 +665,15 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         except Exception:
             pass
     if login_closed:
-        time.sleep(0.8)
+        time.sleep(0.4)
         _return_to_home(driver)
 
     # Step 6: Open cart again (bottom bag) and empty the cart
-    time.sleep(1.0)
+    time.sleep(0.5)
     bag_opened = False
+    wait_bag = WebDriverWait(driver, 2)
     try:
-        bag_el = WebDriverWait(driver, 4).until(
+        bag_el = wait_bag.until(
             EC.element_to_be_clickable(HomePageLocators.BAG_ICON)
         )
         sz = driver.get_window_size()
@@ -691,7 +692,7 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         except Exception:
             pass
     if bag_opened:
-        time.sleep(2.0)
+        time.sleep(0.8)
         # Remove all items: try X on product card or trash/delete icon first, then generic remove
         while True:
             removed = False
