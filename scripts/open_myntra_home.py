@@ -145,16 +145,17 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
         return False
 
     _try_click_or_tap()
-    time.sleep(1.5)
+    time.sleep(0.35)
 
-    # E. Wait for search screen (EditText). If not found, tap at typical search bar position.
+    # E. Wait for search screen (EditText).
     def _find_search_input():
+        wait_inp = WebDriverWait(driver, 0.8)
         for by, value in [
             (AppiumBy.ID, "com.myntra.android:id/search_input"),
             (AppiumBy.CLASS_NAME, "android.widget.EditText"),
         ]:
             try:
-                el = WebDriverWait(driver, 3).until(
+                el = wait_inp.until(
                     EC.presence_of_element_located((by, value))
                 )
                 if el and el.is_displayed():
@@ -173,8 +174,7 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
             for y_ratio in [0.22, 0.25, 0.28]:
                 tx, ty = w // 2, int(h * y_ratio)
                 driver.tap([(tx, ty)])
-                print(f"[DEBUG] Tapped at ({tx}, {ty}) = center, {int(y_ratio*100)}% from top")
-                time.sleep(1.2)
+                time.sleep(0.5)
                 search_input = _find_search_input()
                 if search_input:
                     break
@@ -189,23 +189,21 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
 
     # F & G. Click inside EditText so we can type
     search_input.click()
-    time.sleep(0.5)
+    time.sleep(0.2)
 
     # H. Clear the field
     search_input.clear()
-    time.sleep(0.3)
+    time.sleep(0.1)
 
     # I. send_keys(query)
-    print("Typing starts")
-    logger.info("Typing starts.")
     search_input.send_keys(query)
-    time.sleep(0.5)
+    time.sleep(0.2)
 
     # J. Submit
     driver.press_keycode(66)
-    time.sleep(1.5)
+    time.sleep(0.8)
 
-    # K. Wait for results page (listing/category page may use different structure than search_results_recycler)
+    # K. Wait for results page (short timeout so we don't block 10s per locator)
     results_locators = [
         (AppiumBy.ID, "com.myntra.android:id/search_results_recycler"),
         (AppiumBy.CLASS_NAME, "androidx.recyclerview.widget.RecyclerView"),
