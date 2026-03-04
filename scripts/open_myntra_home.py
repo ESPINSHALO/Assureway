@@ -35,6 +35,44 @@ HOME_PAGE_WAIT_SEC = 0    # No extra wait — go to search immediately
 KEEP_OPEN_AFTER_SEARCH_SEC = 15
 
 
+def _tap_at(driver, x: int, y: int) -> bool:
+    """Perform a reliable tap at (x, y). Tries mobile gesture then W3C actions then tap()."""
+    try:
+        driver.execute_script("mobile: clickGesture", {"x": int(x), "y": int(y)})
+        return True
+    except Exception:
+        pass
+    try:
+        driver.execute_script("mobile: tap", {"x": int(x), "y": int(y)})
+        return True
+    except Exception:
+        pass
+    try:
+        from selenium.webdriver.common.actions.pointer_input import PointerInput
+        from selenium.webdriver.common.actions.action_builder import ActionBuilder
+        try:
+            from selenium.webdriver.common.actions.interaction import POINTER_TOUCH
+            kind = POINTER_TOUCH
+        except ImportError:
+            kind = "touch"
+        actions = ActionBuilder(driver)
+        pointer = PointerInput(kind, "finger")
+        actions.add_pointer_input(pointer)
+        actions.pointer_action.move_to_location(x, y)
+        actions.pointer_action.pointer_down()
+        actions.pointer_action.pointer_up()
+        actions.perform()
+        return True
+    except Exception:
+        pass
+    try:
+        driver.tap([(int(x), int(y))])
+        return True
+    except Exception:
+        pass
+    return False
+
+
 def _current_package(driver):
     try:
         return driver.current_package
@@ -489,6 +527,190 @@ def _return_to_home(driver, back_presses: int = 3, max_extra_back: int = 3) -> b
     return False
 
 
+def empty_cart_and_return_home(driver) -> None:
+    """
+    On Shopping Bag page: click product-card X (not header), confirm REMOVE in popup,
+    wait until cart is empty, then return to Home screen.
+    """
+    wait_short = WebDriverWait(driver, 3)
+    wait10 = WebDriverWait(driver, 10)
+
+    # Step 1 — Detect Shopping Bag screen (any of: product card, title, ITEMS SELECTED, PLACE ORDER)
+    bag_detected = False
+    for loc in [
+        BagPageLocators.BAG_ITEMS,
+        BagPageLocators.BAG_SCREEN_TITLE,
+        BagPageLocators.BAG_SCREEN_ITEMS_SELECTED,
+        BagPageLocators.QTY_DROPDOWN,
+        (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
+    ]:
+        try:
+            wait_short.until(EC.visibility_of_element_located(loc))
+            bag_detected = True
+            logger.info("Shopping bag detected")
+            break
+        except Exception:
+            continue
+    if not bag_detected:
+        logger.warning("Shopping bag screen not detected")
+        return
+
+    # Step 2 — Click the product remove (X) icon: top-right of card, often last ImageView in card
+    remove_icon = None
+    for loc in [
+        BagPageLocators.ITEM_CLOSE_X_LAST_IMAGE,
+        BagPageLocators.ITEM_CLOSE_X_BY_SIZE_CARD,
+        BagPageLocators.ITEM_CLOSE_X_LAST_CLICKABLE,
+        BagPageLocators.REMOVE_ITEM,
+        BagPageLocators.ITEM_CLOSE_X_FIRST_CARD,
+        BagPageLocators.ITEM_CLOSE_X,
+        (AppiumBy.XPATH, "(//*[contains(@resource-id,'bag_item')])[1]//android.widget.ImageButton"),
+        (AppiumBy.XPATH, "//android.widget.ImageView[contains(@content-desc,'Close') or contains(@content-desc,'close')]"),
+        BagPageLocators.TRASH_DELETE_ICON,
+        (AppiumBy.XPATH, "(//*[contains(@resource-id,'bag_item')])[1]//android.widget.ImageView"),
+        (AppiumBy.XPATH, "//android.widget.ImageView[contains(@content-desc,'Remove') or contains(@content-desc,'Delete')]"),
+    ]:
+        try:
+            remove_icon = wait_short.until(EC.element_to_be_clickable(loc))
+            break
+        except Exception:
+            continue
+    if not remove_icon:
+        # Fallback: use Qty/Size row to find card, then reliable tap at top-right (X)
+        try:
+            card_anchor = wait_short.until(
+                EC.presence_of_element_located(
+                    (AppiumBy.XPATH, "//*[contains(@text,'Qty:') or contains(@text,'Size:')]")
+                )
+            )
+            loc, sz = card_anchor.location, card_anchor.size
+            w, h = driver.get_window_size()["width"], driver.get_window_size()["height"]
+            tx = w - 45
+            # X is on the product card (below "1/1 ITEMS SELECTED" + Share/Trash/Heart). Tap in card title row only.
+            # Use smaller offset so we don't hit the Heart/Trash row above the card.
+            ty = max(loc["y"] - 200, 200)
+            if not _tap_at(driver, tx, ty):
+                ty = max(loc["y"] - 170, 200)
+                _tap_at(driver, tx, ty)
+            time.sleep(0.3)
+            logger.info("Remove icon clicked (card top-right via Qty/Size)")
+        except Exception:
+            try:
+                card = wait_short.until(EC.presence_of_element_located(BagPageLocators.BAG_ITEMS))
+                loc, sz = card.location, card.size
+                tx = loc["x"] + sz["width"] - 20
+                ty = loc["y"] + 20
+                _tap_at(driver, tx, ty)
+                logger.info("Remove icon clicked (card top-right)")
+            except Exception as e:
+                logger.warning(f"Remove icon not found on Shopping Bag screen: {e}")
+                return
+    else:
+        try:
+            remove_icon.click()
+            logger.info("Remove icon clicked")
+        except Exception as e:
+            logger.warning(f"Failed to click remove icon: {e}")
+            return
+
+    # Step 3 — Handle confirmation popup: click REMOVE (wait for popup then reliable tap)
+    time.sleep(1.0)
+    remove_button = None
+    wait_popup = WebDriverWait(driver, 6)
+    for loc in [
+        (AppiumBy.XPATH, "//*[@text='REMOVE' or @text='Remove' or contains(@text,'REMOVE') or contains(@text,'Remove')]"),
+        BagPageLocators.POPUP_REMOVE_BUTTON,
+        BagPageLocators.CONFIRM_REMOVE_TEXT,
+        BagPageLocators.CONFIRM_REMOVE,
+        (AppiumBy.XPATH, "//android.widget.Button[contains(@text,'REMOVE') or contains(@text,'Remove')]"),
+        (AppiumBy.XPATH, "//android.widget.TextView[contains(@text,'REMOVE') or contains(@text,'Remove')]"),
+        (AppiumBy.XPATH, "//*[contains(@resource-id,'remove') or contains(@resource-id,'confirm')]"),
+    ]:
+        try:
+            remove_button = wait_popup.until(EC.presence_of_element_located(loc))
+            if remove_button and remove_button.is_displayed():
+                break
+        except Exception:
+            continue
+    if remove_button:
+        try:
+            try:
+                rect = remove_button.rect
+                cx = rect["x"] + rect["width"] // 2
+                cy = rect["y"] + rect["height"] // 2
+            except Exception:
+                loc, sz = remove_button.location, remove_button.size
+                cx = loc["x"] + sz["width"] // 2
+                cy = loc["y"] + sz["height"] // 2
+            if _tap_at(driver, cx, cy):
+                logger.info("Remove confirmed from popup")
+            else:
+                remove_button.click()
+                logger.info("Remove confirmed from popup")
+        except Exception:
+            try:
+                remove_button.click()
+                logger.info("Remove confirmed from popup")
+            except Exception as e:
+                logger.warning(f"Failed to click REMOVE on popup: {e}")
+    else:
+        w, h = driver.get_window_size()["width"], driver.get_window_size()["height"]
+        for px, py in [(w // 2, int(h * 0.58)), (w // 2, int(h * 0.62)), (int(w * 0.75), int(h * 0.58)), (w // 2, int(h * 0.55))]:
+            if _tap_at(driver, px, py):
+                logger.info("Remove confirmed from popup (tap)")
+                break
+            time.sleep(0.2)
+
+    # Step 4 — Wait for cart to be empty
+    cart_emptied = False
+    try:
+        # Primary: product card disappears
+        wait10.until(EC.invisibility_of_element_located(BagPageLocators.BAG_ITEMS))
+        cart_emptied = True
+    except Exception:
+        # Fallback A: explicit empty-cart message
+        try:
+            wait10.until(EC.visibility_of_element_located(BagPageLocators.EMPTY_BAG_MESSAGE))
+            cart_emptied = True
+        except Exception:
+            # Fallback B: PLACE ORDER button disappears (no items to order)
+            try:
+                wait10.until(
+                    EC.invisibility_of_element_located(
+                        (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]")
+                    )
+                )
+                cart_emptied = True
+            except Exception as e:
+                logger.warning(f"Cart may not be fully empty after REMOVE: {e}")
+
+    if cart_emptied:
+        logger.info("Cart emptied successfully")
+
+    # Step 5 — Return to Home screen: press Back until Home tab is visible
+    def _on_home():
+        for loc in [HomePageLocators.HOME_TAB, HomePageLocators.HOME_TAB_ALT]:
+            try:
+                return driver.find_element(*loc).is_displayed()
+            except Exception:
+                continue
+        return False
+
+    for _ in range(4):
+        if _on_home():
+            logger.info("Returned to home screen")
+            return
+        try:
+            driver.back()
+            time.sleep(0.3)
+        except Exception:
+            break
+    if _on_home():
+        logger.info("Returned to home screen")
+    else:
+        logger.warning("Home screen not confirmed after emptying cart")
+
+
 def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
     """After add to bag: return to home, click bottom-right bag icon to open cart, set quantity, Proceed to checkout."""
     wait = WebDriverWait(driver, 8)
@@ -668,100 +890,46 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         except Exception:
             pass
     if login_closed:
-        time.sleep(0.4)
+        time.sleep(0.5)
         _return_to_home(driver)
-
-    # Step 6: Open cart again (bottom bag) and empty the cart
-    time.sleep(0.5)
-    bag_opened = False
-    wait_bag = WebDriverWait(driver, 2)
-    try:
-        bag_el = wait_bag.until(
-            EC.element_to_be_clickable(HomePageLocators.BAG_ICON)
-        )
-        sz = driver.get_window_size()
-        loc = bag_el.location
-        if loc.get("y", 0) >= sz["height"] * 0.8:
-            bag_el.click()
-        else:
-            driver.tap([(int(sz["width"] * 0.92), int(sz["height"] * 0.96))])
-        print("Cart opened again")
-        logger.info("Cart opened again")
-        bag_opened = True
-    except Exception:
+        # Let home screen settle so bottom nav (bag icon) is ready
         try:
-            driver.tap([(int(driver.get_window_size()["width"] * 0.92), int(driver.get_window_size()["height"] * 0.96))])
-            bag_opened = True
+            WebDriverWait(driver, 5).until(EC.visibility_of_element_located(HomePageLocators.HOME_TAB))
         except Exception:
             pass
-    if bag_opened:
-        time.sleep(0.8)
-        # Empty cart: click X on product card (top-right), then in popup click Remove
-        while True:
-            removed = False
-            # Step 1: Find first product card and tap top-right (X icon)
-            try:
-                item = driver.find_element(*BagPageLocators.BAG_ITEMS)
-            except Exception:
-                try:
-                    item = driver.find_element(*BagPageLocators.FIRST_BAG_ITEM_CARD)
-                except Exception:
-                    break
-            try:
-                loc = item.location
-                size = item.size
-                if loc and size:
-                    # X is at top-right of card: right edge, near top
-                    tx = loc["x"] + size["width"] - 25
-                    ty = loc["y"] + 25
-                    driver.tap([(tx, ty)])
-                    print("X on product card tapped (top-right)")
-                    logger.info("X on product card tapped (top-right)")
-                    removed = True
-            except Exception as e:
-                logger.debug(f"Tap X on card: {e}")
-            if not removed:
-                # Fallback: try element locators for X/close on card
-                for remove_loc in [
-                    BagPageLocators.ITEM_CLOSE_X,
-                    BagPageLocators.ITEM_CLOSE_X_ALT,
-                    BagPageLocators.TRASH_DELETE_ICON,
-                ]:
-                    try:
-                        remove_btn = WebDriverWait(driver, 1).until(
-                            EC.element_to_be_clickable(remove_loc)
-                        )
-                        remove_btn.click()
-                        print("X/delete on card clicked")
-                        removed = True
-                        break
-                    except Exception:
-                        continue
-            if not removed:
-                break
-            # Step 2: In popup, click Remove button
-            time.sleep(0.5)
-            for confirm_loc in [
-                BagPageLocators.POPUP_REMOVE_BUTTON,
-                BagPageLocators.CONFIRM_REMOVE_TEXT,
-                BagPageLocators.CONFIRM_REMOVE,
-            ]:
-                try:
-                    confirm_btn = WebDriverWait(driver, 2).until(
-                        EC.element_to_be_clickable(confirm_loc)
-                    )
-                    confirm_btn.click()
-                    print("Remove button clicked in popup")
-                    logger.info("Remove button clicked in popup")
-                    break
-                except Exception:
-                    continue
-            time.sleep(0.5)
-        print("Cart emptied")
-        logger.info("Cart emptied")
-        # Return to home after emptying cart
-        time.sleep(0.4)
-        _return_to_home(driver)
+        time.sleep(1.0)
+
+    # Step 6: Open cart again (bottom bag), wait for Shopping Bag screen, then empty cart
+    logger.info("Opening cart to empty it...")
+    cart_opened = False
+    for bag_loc in [
+        HomePageLocators.BAG_ICON,
+        (AppiumBy.ACCESSIBILITY_ID, "Bag"),
+        (AppiumBy.XPATH, "//*[contains(@content-desc,'Bag') or contains(@content-desc,'Cart')]"),
+    ]:
+        try:
+            bag_el = WebDriverWait(driver, 8).until(EC.element_to_be_clickable(bag_loc))
+            bag_el.click()
+            cart_opened = True
+            print("Cart opened again")
+            logger.info("Cart opened again")
+            break
+        except Exception:
+            continue
+    if not cart_opened:
+        try:
+            w, h = driver.get_window_size()["width"], driver.get_window_size()["height"]
+            driver.tap([(int(w * 0.92), int(h * 0.96))])
+            print("Cart opened (tap bottom-right)")
+            logger.info("Cart opened (tap bottom-right)")
+            cart_opened = True
+        except Exception:
+            pass
+    if cart_opened:
+        time.sleep(1.0)
+        empty_cart_and_return_home(driver)
+    else:
+        logger.warning("Could not reopen cart to empty it")
 
 
 def main(stay_open: bool = False, select_male: bool = True) -> bool:
@@ -780,22 +948,23 @@ def main(stay_open: bool = False, select_male: bool = True) -> bool:
         driver = create_driver()
         start_time = time.time()
 
-        # One back after ~1s so we reach home; then at 2s click search bar and type "shoes"
-        time.sleep(1.0)
+        # Wait for first screen (onboarding/splash) to show before Back — too early and Back can exit the app
+        time.sleep(2.5)
         logger.info("Press Back once to reach home...")
         print("Back once → home")
         try:
             driver.press_keycode(4)  # KEYCODE_BACK
         except Exception as e:
             logger.warning(f"Back key: {e}")
+        time.sleep(0.4)
 
-        # Wait until 2 seconds from app start, then click search bar and type shoes
+        # Then go to search bar and type shoes
         elapsed = time.time() - start_time
-        wait_until_2s = 2.0 - elapsed
-        if wait_until_2s > 0:
-            time.sleep(wait_until_2s)
-        logger.info("At 2s: click search bar, type shoes")
-        print("At 2s: click search bar → type shoes")
+        wait_until_3s = max(0, 3.0 - elapsed)
+        if wait_until_3s > 0:
+            time.sleep(wait_until_3s)
+        logger.info("Click search bar, type shoes")
+        print("Click search bar → type shoes")
         perform_search(driver, "shoes")
 
         # STEP 4b: Gender Male (optional) → Sort → Discounts → open first shoe
@@ -839,7 +1008,10 @@ def main(stay_open: bool = False, select_male: bool = True) -> bool:
     except Exception as e:
         logger.error(f"Script failed: {e}")
         print(f"Error: {e}")
-        raise  # Do not allow silent failure
+        if driver:
+            print("Keeping app open 5s before exit...")
+            time.sleep(5)
+        raise
     finally:
         if driver:
             quit_driver(driver)

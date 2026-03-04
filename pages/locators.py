@@ -95,8 +95,16 @@ class BagPageLocators:
     FIRST_BAG_ITEM_CARD = (AppiumBy.XPATH, "(//*[contains(@resource-id,'bag_item') or contains(@resource-id,'cart_item') or contains(@resource-id,'product')])[1]")
     REMOVE_ITEM = (AppiumBy.ID, "com.myntra.android:id/remove_item")
     REMOVE_ITEM_XPATH = (AppiumBy.XPATH, "//*[contains(@content-desc,'Remove') or contains(@content-desc,'Delete') or contains(@resource-id,'remove')]")
-    # X icon on product card (top-right of item) — removes that item
+    # X icon on product card (top-right of item) — removes that item (must be inside product card, not header)
     ITEM_CLOSE_X = (AppiumBy.XPATH, "//*[contains(@resource-id,'bag_item') or contains(@resource-id,'cart_item')]//*[contains(@content-desc,'Close') or contains(@resource-id,'close') or contains(@content-desc,'Remove') or contains(@content-desc,'Delete')]")
+    # First product card's remove/close icon only (avoid header/toolbar close)
+    ITEM_CLOSE_X_FIRST_CARD = (AppiumBy.XPATH, "(//*[contains(@resource-id,'bag_item') or contains(@resource-id,'cart_item')])[1]//*[contains(@content-desc,'Remove') or contains(@content-desc,'Delete') or contains(@content-desc,'Close') or contains(@resource-id,'remove') or contains(@resource-id,'close')]")
+    # X is often the last ImageView inside the product card (top-right; card has checkmark, product image, then X)
+    ITEM_CLOSE_X_LAST_IMAGE = (AppiumBy.XPATH, "(//*[contains(@resource-id,'bag_item') or contains(@resource-id,'cart_item')])[1]//android.widget.ImageView[last()]")
+    # Card containing "Size:" / "Qty:" — then last ImageView in that card (the X)
+    ITEM_CLOSE_X_BY_SIZE_CARD = (AppiumBy.XPATH, "//*[contains(@text,'Size:') or contains(@text,'Qty:')]/ancestor::*[contains(@resource-id,'bag_item') or contains(@resource-id,'item') or contains(@resource-id,'product')][1]//android.widget.ImageView[last()]")
+    # Small X may be the last clickable node in the first bag item
+    ITEM_CLOSE_X_LAST_CLICKABLE = (AppiumBy.XPATH, "(//*[contains(@resource-id,'bag_item') or contains(@resource-id,'cart_item')])[1]//*[@clickable='true'][last()]")
     ITEM_CLOSE_X_ALT = (AppiumBy.XPATH, "//*[contains(@text,'ITEMS SELECTED')]/following-sibling::*//*[contains(@content-desc,'Delete') or contains(@content-desc,'Remove') or contains(@resource-id,'remove')]")
     # Trash/delete icon near "1/1 ITEMS SELECTED"
     TRASH_DELETE_ICON = (AppiumBy.XPATH, "//*[contains(@content-desc,'Delete') or contains(@content-desc,'Remove') or contains(@content-desc,'Trash')]")
@@ -114,6 +122,9 @@ class BagPageLocators:
     # Proceed to checkout
     PROCEED_TO_CHECKOUT = (AppiumBy.XPATH, "//*[contains(@text,'Proceed') or contains(@text,'PROCEED') or contains(@text,'Checkout') or contains(@text,'CHECKOUT') or contains(@text,'Place Order')]")
     PROCEED_BUTTON = (AppiumBy.ID, "com.myntra.android:id/checkout")  # if exists
+    # Shopping Bag screen detection (any of these = we're on bag page)
+    BAG_SCREEN_TITLE = (AppiumBy.XPATH, "//*[contains(@text,'SHOPPING BAG') or contains(@text,'Shopping Bag')]")
+    BAG_SCREEN_ITEMS_SELECTED = (AppiumBy.XPATH, "//*[contains(@text,'ITEMS SELECTED') or contains(@text,'Item selected') or contains(@text,'Items selected')]")
 
 
 class PopupLocators:
