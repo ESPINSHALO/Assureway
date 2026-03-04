@@ -112,6 +112,10 @@ class BagPageLocators:
     CONFIRM_REMOVE = (AppiumBy.ID, "android:id/button1")  # OK/Remove confirmation
     CONFIRM_REMOVE_TEXT = (AppiumBy.XPATH, "//*[contains(@text,'Remove') or contains(@text,'REMOVE') or contains(@text,'OK') or contains(@text,'Yes')]")
     POPUP_REMOVE_BUTTON = (AppiumBy.XPATH, "//*[@text='REMOVE' or @text='Remove' or contains(@text,'REMOVE') or contains(@text,'Remove')]")
+    POPUP_REMOVE_BY_DESC = (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().descriptionContains("Remove")')
+    POPUP_REMOVE_BY_TEXT = (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().textContains("REMOVE")')
+    # Two-button dialog: button1 = Cancel (left), button2 = REMOVE (right)
+    POPUP_REMOVE_BUTTON2 = (AppiumBy.ID, "android:id/button2")
     EMPTY_BAG_MESSAGE = (AppiumBy.XPATH, "//*[contains(@text, 'empty') or contains(@text, 'nothing')]")
     # Quantity: dropdown on bag page (Qty: 1, then select 2)
     QTY_DROPDOWN = (AppiumBy.XPATH, "//*[contains(@text,'Qty') or contains(@text,'QTY') or contains(@text,'Quantity')]")

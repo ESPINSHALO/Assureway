@@ -613,53 +613,45 @@ def empty_cart_and_return_home(driver) -> None:
             logger.warning(f"Failed to click remove icon: {e}")
             return
 
-    # Step 3 — Handle confirmation popup: click REMOVE (wait for popup then reliable tap)
-    time.sleep(1.0)
-    remove_button = None
+    # Step 3 — Confirmation popup (Cancel | REMOVE): click REMOVE (right button in dialog)
+    time.sleep(1.5)
+    w, h = driver.get_window_size()["width"], driver.get_window_size()["height"]
+    remove_clicked = False
+    # 1) Try to find REMOVE element and tap its center
     wait_popup = WebDriverWait(driver, 6)
     for loc in [
-        (AppiumBy.XPATH, "//*[@text='REMOVE' or @text='Remove' or contains(@text,'REMOVE') or contains(@text,'Remove')]"),
+        (AppiumBy.ID, "android:id/button2"),
+        BagPageLocators.POPUP_REMOVE_BUTTON2,
+        (AppiumBy.XPATH, "//*[@text='REMOVE' or contains(@text,'REMOVE')]"),
         BagPageLocators.POPUP_REMOVE_BUTTON,
+        BagPageLocators.POPUP_REMOVE_BY_TEXT,
         BagPageLocators.CONFIRM_REMOVE_TEXT,
         BagPageLocators.CONFIRM_REMOVE,
         (AppiumBy.XPATH, "//android.widget.Button[contains(@text,'REMOVE') or contains(@text,'Remove')]"),
         (AppiumBy.XPATH, "//android.widget.TextView[contains(@text,'REMOVE') or contains(@text,'Remove')]"),
-        (AppiumBy.XPATH, "//*[contains(@resource-id,'remove') or contains(@resource-id,'confirm')]"),
     ]:
         try:
             remove_button = wait_popup.until(EC.presence_of_element_located(loc))
             if remove_button and remove_button.is_displayed():
+                loc_el, sz_el = remove_button.location, remove_button.size
+                cx = loc_el["x"] + sz_el["width"] // 2
+                cy = loc_el["y"] + sz_el["height"] // 2
+                _tap_at(driver, cx, cy)
+                remove_clicked = True
+                logger.info("Remove confirmed from popup")
                 break
         except Exception:
             continue
-    if remove_button:
-        try:
-            try:
-                rect = remove_button.rect
-                cx = rect["x"] + rect["width"] // 2
-                cy = rect["y"] + rect["height"] // 2
-            except Exception:
-                loc, sz = remove_button.location, remove_button.size
-                cx = loc["x"] + sz["width"] // 2
-                cy = loc["y"] + sz["height"] // 2
-            if _tap_at(driver, cx, cy):
-                logger.info("Remove confirmed from popup")
-            else:
-                remove_button.click()
-                logger.info("Remove confirmed from popup")
-        except Exception:
-            try:
-                remove_button.click()
-                logger.info("Remove confirmed from popup")
-            except Exception as e:
-                logger.warning(f"Failed to click REMOVE on popup: {e}")
-    else:
-        w, h = driver.get_window_size()["width"], driver.get_window_size()["height"]
-        for px, py in [(w // 2, int(h * 0.58)), (w // 2, int(h * 0.62)), (int(w * 0.75), int(h * 0.58)), (w // 2, int(h * 0.55))]:
-            if _tap_at(driver, px, py):
-                logger.info("Remove confirmed from popup (tap)")
-                break
-            time.sleep(0.2)
+    # 2) If not found, tap right side of screen (REMOVE is usually right of Cancel)
+    if not remove_clicked:
+        for px, py in [
+            (int(w * 0.82), int(h * 0.58)), (int(w * 0.78), int(h * 0.60)),
+            (int(w * 0.80), int(h * 0.62)), (int(w * 0.85), int(h * 0.58)),
+            (int(w * 0.75), int(h * 0.60)), (int(w * 0.78), int(h * 0.55)),
+        ]:
+            _tap_at(driver, px, py)
+            time.sleep(0.4)
+        logger.info("Remove confirmed from popup (right-side tap)")
 
     # Step 4 — Wait for cart to be empty
     cart_emptied = False
