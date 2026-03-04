@@ -396,7 +396,7 @@ def add_to_bag_select_available_size(driver) -> None:
     if not size_clicked:
         for size_val in ["5", "6", "7", "8", "9", "10"]:
             try:
-                size_el = WebDriverWait(driver, 2).until(
+                size_el = wait_size.until(
                     EC.element_to_be_clickable(
                         (AppiumBy.XPATH, f"//*[contains(@text,'UK {size_val}') or contains(@text,'US {size_val}') or @text='{size_val}']")
                     )
@@ -410,7 +410,7 @@ def add_to_bag_select_available_size(driver) -> None:
                 continue
     if not size_clicked:
         try:
-            any_size = WebDriverWait(driver, 3).until(
+            any_size = wait_size.until(
                 EC.element_to_be_clickable(ProductPageLocators.SIZE_ANY)
             )
             any_size.click()
