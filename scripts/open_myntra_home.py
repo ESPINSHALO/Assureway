@@ -543,17 +543,17 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
             (AppiumBy.XPATH, "//*[contains(@text,'Qty')]"),
         ]:
             try:
-                qty_el = WebDriverWait(driver, 4).until(EC.element_to_be_clickable(qty_loc))
+                qty_el = wait_qty.until(EC.element_to_be_clickable(qty_loc))
                 qty_el.click()
                 print("Qty dropdown clicked")
                 logger.info("Qty dropdown clicked")
-                time.sleep(1.0)
+                time.sleep(0.5)
                 break
             except Exception:
                 continue
         # 3b: Click option "2" in the dropdown
         try:
-            opt = WebDriverWait(driver, 4).until(
+            opt = wait_qty.until(
                 EC.element_to_be_clickable((AppiumBy.XPATH, "//*[@text='2']"))
             )
             opt.click()
@@ -564,7 +564,7 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
             pass
         if not qty_set:
             try:
-                opt = WebDriverWait(driver, 3).until(
+                opt = wait_qty.until(
                     EC.element_to_be_clickable(BagPageLocators.QTY_OPTION_2)
                 )
                 opt.click()
