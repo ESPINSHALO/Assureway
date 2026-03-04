@@ -424,7 +424,7 @@ def add_to_bag_select_available_size(driver) -> None:
     # Step 3: Click DONE to confirm and add to bag
     done_clicked = False
     try:
-        done_btn = WebDriverWait(driver, 5).until(
+        done_btn = WebDriverWait(driver, 3).until(
             EC.element_to_be_clickable(ProductPageLocators.SIZE_DONE_BUTTON)
         )
         done_btn.click()
@@ -472,16 +472,16 @@ def _return_to_home(driver, back_presses: int = 3, max_extra_back: int = 3) -> b
     for _ in range(back_presses):
         try:
             driver.back()
-            time.sleep(0.6)
+            time.sleep(0.35)
         except Exception:
             break
-    time.sleep(0.5)
+    time.sleep(0.25)
     if _is_home():
         return True
     for _ in range(max_extra_back):
         try:
             driver.back()
-            time.sleep(0.6)
+            time.sleep(0.35)
         except Exception:
             break
         if _is_home():
