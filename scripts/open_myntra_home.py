@@ -343,7 +343,7 @@ def add_to_bag_select_available_size(driver) -> None:
             sz = driver.get_window_size()
             w, h = sz["width"], sz["height"]
             driver.swipe(w // 2, int(h * 0.7), w // 2, int(h * 0.35), 400)
-            time.sleep(0.5)
+            time.sleep(0.3)
             for add_loc in [
                 ProductPageLocators.ADD_TO_BAG,
                 ProductPageLocators.ADD_TO_BAG_TEXT,
@@ -374,14 +374,15 @@ def add_to_bag_select_available_size(driver) -> None:
         logger.warning("Add to bag button not found; skipping size pop-up flow.")
         return
 
-    time.sleep(1.5)  # Wait for Select Size pop-up to appear
+    time.sleep(0.6)  # Brief wait for Select Size pop-up
 
     # Step 2: In the pop-up, click the first available size (try 5, then 6, 7, 8, 9, 10; only non-greyed are clickable)
     size_clicked = False
+    wait_size = WebDriverWait(driver, 2)
     for size_val in ["5", "6", "7", "8", "9", "10"]:
         try:
             # Prefer exact text so we hit the size chip (e.g. "5") not another element
-            size_el = WebDriverWait(driver, 3).until(
+            size_el = wait_size.until(
                 EC.element_to_be_clickable((AppiumBy.XPATH, f"//*[@text='{size_val}']"))
             )
             if size_el and size_el.is_displayed():
