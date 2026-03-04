@@ -30,7 +30,7 @@ from utils.logger import logger
 
 MYNTRA_PACKAGE = "com.myntra.android"
 TOP_RIGHT_TAP_SEC = 5       # Tap top-right X long enough to close first popup
-POPUP_HANDLING_SEC = 5      # Dismiss popups so everything completes in first launch
+POPUP_HANDLING_SEC = 2      # Brief popup check so we go to search within ~2 sec of Back
 HOME_PAGE_WAIT_SEC = 0    # No extra wait — go to search immediately
 KEEP_OPEN_AFTER_SEARCH_SEC = 15
 
@@ -72,32 +72,33 @@ def _close_running_screens_until_home(driver, popup_handler):
     return _current_package(driver) == MYNTRA_PACKAGE
 
 
-def perform_search(driver, query: str, timeout: int = 10) -> None:
+def _dismiss_profile_if_open(driver) -> bool:
+    """If profile page is open, press Back once to return to home. Returns True if back was pressed."""
+    try:
+        if driver.current_package != MYNTRA_PACKAGE:
+            return False
+        profile_title = driver.find_elements(*PopupLocators.PROFILE_SCREEN_TITLE)
+        profile_login = driver.find_elements(*PopupLocators.PROFILE_LOGIN_BUTTON)
+        if (profile_title and profile_title[0].is_displayed()) or (profile_login and profile_login[0].is_displayed()):
+            driver.press_keycode(4)  # KEYCODE_BACK
+            time.sleep(0.6)
+            print("Profile page closed (Back once)")
+            logger.info("Profile page closed (Back once)")
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def perform_search(driver, query: str, timeout: int = 5) -> None:
     """
     Pure Appium search. No ADB. Uses Myntra resource-ids first, then fallbacks.
     Raises if any required element is not found.
     """
-    wait = WebDriverWait(driver, timeout)
+    # If profile page interrupted, go back once
+    _dismiss_profile_if_open(driver)
 
-    # Do not call activate_app here — it can close the app; we're already in Myntra from main flow
-
-    try:
-        activity = driver.current_activity or "(unknown)"
-        print(f"[DEBUG] Current activity before clicking search: {activity}")
-        logger.info(f"Current activity before search: {activity}")
-    except Exception as e:
-        print(f"[DEBUG] Could not get activity: {e}")
-
-    # A. Wait until home screen bottom navigation "Home" is visible (short timeout)
-    try:
-        wait.until(EC.element_to_be_clickable(HomePageLocators.HOME_TAB))
-    except Exception:
-        try:
-            wait.until(EC.element_to_be_clickable(HomePageLocators.HOME_TAB_ALT))
-        except Exception:
-            pass
-
-    # B & C. Locate search container — try ID, then clickable parent of "Jeans", then text, UiSelector
+    # Locate search bar immediately (skip home check — we're already on home)
     search_container = None
     search_container_locators = [
         (AppiumBy.ID, "com.myntra.android:id/search_widget_text"),
@@ -106,15 +107,15 @@ def perform_search(driver, query: str, timeout: int = 10) -> None:
         (AppiumBy.ACCESSIBILITY_ID, "Search"),
         (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().descriptionContains("Search")'),
         (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().textContains("Jeans")'),
-        (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().className("android.widget.EditText").clickable(true)'),
         (AppiumBy.CLASS_NAME, "android.widget.EditText"),
     ]
+    # Short timeouts so we fail fast and try next locator (driver implicit_wait should be 0)
+    wait_search = WebDriverWait(driver, 0.8)
     for by, value in search_container_locators:
         try:
-            el = wait.until(EC.visibility_of_element_located((by, value)))
+            el = wait_search.until(EC.visibility_of_element_located((by, value)))
             if el and el.is_displayed():
                 search_container = el
-                print(f"[DEBUG] Search container located via: {by} = {value!r}")
                 break
         except Exception:
             continue
