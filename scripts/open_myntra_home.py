@@ -214,9 +214,10 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
         (AppiumBy.XPATH, "//*[contains(@text,'SHOES') or contains(@text,'Shoes')]"),
     ]
     found = False
+    wait_results = WebDriverWait(driver, 4)
     for by, value in results_locators:
         try:
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((by, value)))
+            wait_results.until(EC.presence_of_element_located((by, value)))
             found = True
             break
         except Exception:
@@ -232,7 +233,7 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
 
 def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True) -> None:
     """On shoes listing: optional Gender → Male, then Sort → Discounts → tap first shoe."""
-    wait = WebDriverWait(driver, 15)
+    wait = WebDriverWait(driver, 8)
 
     # Optional: select Gender → Male, wait for list to load
     if select_male:
@@ -241,12 +242,12 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
             gender_btn.click()
             print("Gender button tapped")
             logger.info("Gender button tapped")
-            time.sleep(1)
+            time.sleep(0.5)
             male_opt = wait.until(EC.element_to_be_clickable(SearchPageLocators.GENDER_MALE))
             male_opt.click()
             print("Male selected")
             logger.info("Male selected")
-            time.sleep(2)  # Wait for listing to load after gender filter
+            time.sleep(1.0)  # Brief wait for listing after gender filter
         except Exception as e:
             logger.warning(f"Gender Male: {e}")
 
