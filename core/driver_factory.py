@@ -6,7 +6,8 @@ from utils.logger import logger
 
 
 APPIUM_SERVER_URL = "http://127.0.0.1:4723"
-DEFAULT_IMPLICIT_WAIT = 10
+# Use 0 so WebDriverWait timeouts control timing; avoids 10s block per failed find
+DEFAULT_IMPLICIT_WAIT = 0
 
 
 def create_driver(
