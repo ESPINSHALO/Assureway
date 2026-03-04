@@ -491,15 +491,15 @@ def _return_to_home(driver, back_presses: int = 3, max_extra_back: int = 3) -> b
 
 def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
     """After add to bag: return to home, click bottom-right bag icon to open cart, set quantity, Proceed to checkout."""
-    wait = WebDriverWait(driver, 15)
-    time.sleep(1.0)
+    wait = WebDriverWait(driver, 8)
+    time.sleep(0.4)
 
     # Step 1: Return to home page (cancel top-right cart; use bottom nav bag instead)
     print("Returning to home page...")
     logger.info("Returning to home page...")
     if not _return_to_home(driver):
         logger.warning("Could not return to home; will try bottom bag icon anyway.")
-    time.sleep(1.0)
+    time.sleep(0.5)
 
     # Step 2: Click bottom-right bag (cart) icon in the bottom navigation bar
     bag_clicked = False
@@ -531,11 +531,12 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         logger.warning("Bottom bag icon not found; skipping quantity/checkout.")
         return
 
-    time.sleep(2)  # Wait for bag/cart page to load
+    time.sleep(0.8)  # Brief wait for bag/cart page
 
     # Step 3: Set quantity to `quantity` (e.g. 2) — click Qty dropdown, then select 2
     if quantity >= 2:
         qty_set = False
+        wait_qty = WebDriverWait(driver, 2)
         # 3a: Click the Qty dropdown (e.g. "Qty: 1")
         for qty_loc in [
             BagPageLocators.QTY_DROPDOWN,
@@ -576,17 +577,17 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
             # Fallback: try plus button once (if UI has it)
             for plus_loc in [BagPageLocators.QUANTITY_PLUS, BagPageLocators.QUANTITY_PLUS_TEXT]:
                 try:
-                    plus_btn = WebDriverWait(driver, 3).until(EC.element_to_be_clickable(plus_loc))
+                    plus_btn = wait_qty.until(EC.element_to_be_clickable(plus_loc))
                     plus_btn.click()
                     print("Quantity increased (+1)")
                     qty_set = True
                     break
                 except Exception:
                     continue
-        time.sleep(0.5)
+        time.sleep(0.2)
         # 3c: Click DONE to confirm quantity and close dropdown
         try:
-            done_btn = WebDriverWait(driver, 4).until(
+            done_btn = WebDriverWait(driver, 2).until(
                 EC.element_to_be_clickable(ProductPageLocators.SIZE_DONE_BUTTON)
             )
             done_btn.click()
@@ -599,10 +600,11 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
                 print("DONE clicked")
             except Exception:
                 pass
-        time.sleep(0.8)
+        time.sleep(0.4)
 
     # Step 4: Click Place Order
     place_order_clicked = False
+    wait_checkout = WebDriverWait(driver, 3)
     for checkout_loc in [
         (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
         (AppiumBy.ID, "com.myntra.android:id/checkout"),
@@ -637,8 +639,9 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
             logger.warning(f"Proceed to checkout not found: {e}")
 
     # Step 5: If login screen opens after Place Order, click X (top right) to close and return to home
-    time.sleep(1.5)
+    time.sleep(0.8)
     login_closed = False
+    wait_close = WebDriverWait(driver, 2)
     for close_loc in [
         PopupLocators.ONBOARDING_CLOSE,
         PopupLocators.CLOSE_BUTTON,
@@ -647,7 +650,7 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         (AppiumBy.XPATH, "//*[contains(@content-desc,'Close') or contains(@resource-id,'close')]"),
     ]:
         try:
-            close_el = WebDriverWait(driver, 3).until(EC.element_to_be_clickable(close_loc))
+            close_el = wait_close.until(EC.element_to_be_clickable(close_loc))
             close_el.click()
             print("Login screen closed (X clicked)")
             logger.info("Login screen closed (X clicked)")
@@ -693,78 +696,79 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
             pass
     if bag_opened:
         time.sleep(0.8)
-        # Remove all items: try X on product card or trash/delete icon first, then generic remove
+        # Empty cart: click X on product card (top-right), then in popup click Remove
         while True:
             removed = False
-            for remove_loc in [
-                BagPageLocators.ITEM_CLOSE_X,
-                BagPageLocators.ITEM_CLOSE_X_ALT,
-                BagPageLocators.TRASH_DELETE_ICON,
-                BagPageLocators.REMOVE_ITEM,
-                BagPageLocators.REMOVE_ITEM_XPATH,
+            # Step 1: Find first product card and tap top-right (X icon)
+            try:
+                item = driver.find_element(*BagPageLocators.BAG_ITEMS)
+            except Exception:
+                try:
+                    item = driver.find_element(*BagPageLocators.FIRST_BAG_ITEM_CARD)
+                except Exception:
+                    break
+            try:
+                loc = item.location
+                size = item.size
+                if loc and size:
+                    # X is at top-right of card: right edge, near top
+                    tx = loc["x"] + size["width"] - 25
+                    ty = loc["y"] + 25
+                    driver.tap([(tx, ty)])
+                    print("X on product card tapped (top-right)")
+                    logger.info("X on product card tapped (top-right)")
+                    removed = True
+            except Exception as e:
+                logger.debug(f"Tap X on card: {e}")
+            if not removed:
+                # Fallback: try element locators for X/close on card
+                for remove_loc in [
+                    BagPageLocators.ITEM_CLOSE_X,
+                    BagPageLocators.ITEM_CLOSE_X_ALT,
+                    BagPageLocators.TRASH_DELETE_ICON,
+                ]:
+                    try:
+                        remove_btn = WebDriverWait(driver, 1).until(
+                            EC.element_to_be_clickable(remove_loc)
+                        )
+                        remove_btn.click()
+                        print("X/delete on card clicked")
+                        removed = True
+                        break
+                    except Exception:
+                        continue
+            if not removed:
+                break
+            # Step 2: In popup, click Remove button
+            time.sleep(0.5)
+            for confirm_loc in [
+                BagPageLocators.POPUP_REMOVE_BUTTON,
+                BagPageLocators.CONFIRM_REMOVE_TEXT,
+                BagPageLocators.CONFIRM_REMOVE,
             ]:
                 try:
-                    remove_btn = WebDriverWait(driver, 3).until(
-                        EC.element_to_be_clickable(remove_loc)
+                    confirm_btn = WebDriverWait(driver, 2).until(
+                        EC.element_to_be_clickable(confirm_loc)
                     )
-                    remove_btn.click()
-                    print("Remove item clicked (X or delete icon)")
-                    removed = True
-                    time.sleep(0.8)
-                    for confirm_loc in [BagPageLocators.CONFIRM_REMOVE, BagPageLocators.CONFIRM_REMOVE_TEXT]:
-                        try:
-                            confirm_btn = WebDriverWait(driver, 3).until(
-                                EC.element_to_be_clickable(confirm_loc)
-                            )
-                            confirm_btn.click()
-                            print("Remove confirmed")
-                            break
-                        except Exception:
-                            continue
+                    confirm_btn.click()
+                    print("Remove button clicked in popup")
+                    logger.info("Remove button clicked in popup")
                     break
                 except Exception:
                     continue
-            if not removed:
-                # Fallback: tap top-right of first bag item (where X often is)
-                try:
-                    item = driver.find_element(*BagPageLocators.BAG_ITEMS)
-                    loc = item.location
-                    size = item.size
-                    if loc and size:
-                        tx = loc["x"] + size["width"] - 30
-                        ty = loc["y"] + 30
-                        driver.tap([(tx, ty)])
-                        print("Remove tapped (X position on item)")
-                        removed = True
-                        time.sleep(0.8)
-                        for confirm_loc in [BagPageLocators.CONFIRM_REMOVE, BagPageLocators.CONFIRM_REMOVE_TEXT]:
-                            try:
-                                confirm_btn = WebDriverWait(driver, 2).until(
-                                    EC.element_to_be_clickable(confirm_loc)
-                                )
-                                confirm_btn.click()
-                                break
-                            except Exception:
-                                continue
-                except Exception:
-                    pass
-            if not removed:
-                break
-            time.sleep(1.0)
+            time.sleep(0.5)
         print("Cart emptied")
         logger.info("Cart emptied")
         # Return to home after emptying cart
-        time.sleep(0.8)
+        time.sleep(0.4)
         _return_to_home(driver)
 
 
 def main(stay_open: bool = False, select_male: bool = True) -> bool:
     """
     STEP 1: Launch app
-    0–3 sec: Top-right close (X) — popup cancel
-    4th sec: Home page (popup handler until home)
-    5th sec: Click search bar
-    6th sec: Type "shoes" and search
+    ~1s: Press Back once to reach home
+    2s: Click search bar and type "shoes"
     STEP 5: Keep app open 15 sec (or --stay until Ctrl+C)
     STEP 6: Quit driver
     """
@@ -774,90 +778,37 @@ def main(stay_open: bool = False, select_male: bool = True) -> bool:
         logger.info("STEP 1: Launch app")
         print("STEP 1: Launch app")
         driver = create_driver()
+        start_time = time.time()
 
-        # Wait for onboarding/splash so the X is visible, then tap long enough to close on first launch
-        time.sleep(1.5)
-        logger.info(f"Top-right close (X): running for {TOP_RIGHT_TAP_SEC} seconds...")
-        print(f"Top-right close (X): {TOP_RIGHT_TAP_SEC} seconds...")
-
-        w, h = 1080, 2400
+        # One back after ~1s so we reach home; then at 2s click search bar and type "shoes"
+        time.sleep(1.0)
+        logger.info("Press Back once to reach home...")
+        print("Back once → home")
         try:
-            s = driver.get_window_size()
-            w, h = s["width"], s["height"]
-        except Exception:
-            pass
+            driver.press_keycode(4)  # KEYCODE_BACK
+        except Exception as e:
+            logger.warning(f"Back key: {e}")
 
-        # Tap several positions in top-right so popup closes first time (no second open)
-        x_positions = [
-            (0.92, 0.08),
-            (0.95, 0.07),
-            (0.90, 0.08),
-            (0.92, 0.06),
-            (0.88, 0.08),
-        ]
-        end = time.time() + TOP_RIGHT_TAP_SEC
-        tap_count = 0
-        while time.time() < end:
-            for x_ratio, y_ratio in x_positions:
-                x, y = int(w * x_ratio), int(h * y_ratio)
-                try:
-                    driver.tap([(x, y)])
-                    tap_count += 1
-                except Exception as e:
-                    logger.debug(f"Tap at ({x},{y}) failed: {e}")
-            time.sleep(0.35)
-        print(f"Top-right close done. ({tap_count} taps)")
-        logger.info(f"Top-right X: {tap_count} taps attempted.")
-
-        # Brief settle so first popup close takes effect before more dismissal
-        time.sleep(0.8)
-
-        # STEP 2: Handle any remaining popups (all in first launch, no second open)
-        logger.info("STEP 2: Handle popups")
-        print("STEP 2: Handle popups")
-        popup = PopupHandler(driver)
-        _close_running_screens_until_home(driver, popup)
-
-        time.sleep(0.3)
-        if _current_package(driver) != MYNTRA_PACKAGE:
-            logger.warning("App may have left Myntra after popups; continuing without activate_app.")
-
-        # No extra home wait — go straight to search
-        if HOME_PAGE_WAIT_SEC > 0:
-            time.sleep(HOME_PAGE_WAIT_SEC)
-
-        # STEP 3: Confirm home quickly then search (short timeouts)
-        logger.info("STEP 3: Confirm home → search")
-        print("STEP 3: Confirm home → search")
-        try:
-            WebDriverWait(driver, 3).until(
-                EC.element_to_be_clickable(HomePageLocators.HOME_TAB)
-            )
-        except Exception:
-            try:
-                WebDriverWait(driver, 2).until(
-                    EC.element_to_be_clickable(HomePageLocators.HOME_TAB_ALT)
-                )
-            except Exception:
-                pass
-        time.sleep(0.2)
-
-        # STEP 4: Search immediately (don't add extra delay)
-        logger.info("STEP 4: Click search bar, type shoes, search")
-        print("STEP 4: Search (click bar → type shoes → search)")
+        # Wait until 2 seconds from app start, then click search bar and type shoes
+        elapsed = time.time() - start_time
+        wait_until_2s = 2.0 - elapsed
+        if wait_until_2s > 0:
+            time.sleep(wait_until_2s)
+        logger.info("At 2s: click search bar, type shoes")
+        print("At 2s: click search bar → type shoes")
         perform_search(driver, "shoes")
 
         # STEP 4b: Gender Male (optional) → Sort → Discounts → open first shoe
         logger.info("STEP 4b: Gender Male (if enabled) → Sort → Discounts → first shoe")
         print("STEP 4b: Gender Male → Sort → Discounts → first shoe")
         sort_price_low_to_high_and_open_first_shoe(driver, select_male=select_male)
-        time.sleep(1.5)
+        time.sleep(0.8)
 
         # STEP 4c: On product page — select any available size (6–10), then Add to bag
         logger.info("STEP 4c: Select available size (6,7,8,9,10), Add to bag")
         print("STEP 4c: Select available size → Add to bag")
         add_to_bag_select_available_size(driver)
-        time.sleep(1)
+        time.sleep(0.5)
 
         # STEP 4d: Return to home → click bottom-right bag icon → quantity 2 → Proceed to checkout
         logger.info("STEP 4d: Home → bottom bag → quantity 2 → Proceed to checkout")

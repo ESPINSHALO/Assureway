@@ -91,6 +91,8 @@ class BagPageLocators:
     # Only header icon: content-desc Bag/Cart but NOT "Add to" (excludes "Add to bag" in product cards)
     CART_ICON_ALT = (AppiumBy.XPATH, "//*[(contains(@content-desc,'Bag') or contains(@content-desc,'Cart')) and not(contains(@content-desc,'Add to')) and not(contains(@text,'Add to'))]")
     BAG_ITEMS = (AppiumBy.ID, "com.myntra.android:id/bag_item")
+    # First product card in bag (for tapping X at top-right)
+    FIRST_BAG_ITEM_CARD = (AppiumBy.XPATH, "(//*[contains(@resource-id,'bag_item') or contains(@resource-id,'cart_item') or contains(@resource-id,'product')])[1]")
     REMOVE_ITEM = (AppiumBy.ID, "com.myntra.android:id/remove_item")
     REMOVE_ITEM_XPATH = (AppiumBy.XPATH, "//*[contains(@content-desc,'Remove') or contains(@content-desc,'Delete') or contains(@resource-id,'remove')]")
     # X icon on product card (top-right of item) — removes that item
@@ -98,8 +100,10 @@ class BagPageLocators:
     ITEM_CLOSE_X_ALT = (AppiumBy.XPATH, "//*[contains(@text,'ITEMS SELECTED')]/following-sibling::*//*[contains(@content-desc,'Delete') or contains(@content-desc,'Remove') or contains(@resource-id,'remove')]")
     # Trash/delete icon near "1/1 ITEMS SELECTED"
     TRASH_DELETE_ICON = (AppiumBy.XPATH, "//*[contains(@content-desc,'Delete') or contains(@content-desc,'Remove') or contains(@content-desc,'Trash')]")
+    # Confirmation popup after tapping X on card: click "Remove" button
     CONFIRM_REMOVE = (AppiumBy.ID, "android:id/button1")  # OK/Remove confirmation
-    CONFIRM_REMOVE_TEXT = (AppiumBy.XPATH, "//*[contains(@text,'Remove') or contains(@text,'OK') or contains(@text,'Yes')]")
+    CONFIRM_REMOVE_TEXT = (AppiumBy.XPATH, "//*[contains(@text,'Remove') or contains(@text,'REMOVE') or contains(@text,'OK') or contains(@text,'Yes')]")
+    POPUP_REMOVE_BUTTON = (AppiumBy.XPATH, "//*[@text='REMOVE' or @text='Remove' or contains(@text,'REMOVE') or contains(@text,'Remove')]")
     EMPTY_BAG_MESSAGE = (AppiumBy.XPATH, "//*[contains(@text, 'empty') or contains(@text, 'nothing')]")
     # Quantity: dropdown on bag page (Qty: 1, then select 2)
     QTY_DROPDOWN = (AppiumBy.XPATH, "//*[contains(@text,'Qty') or contains(@text,'QTY') or contains(@text,'Quantity')]")
