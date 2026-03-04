@@ -281,7 +281,7 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
             continue
     if not discounts_clicked:
         logger.warning("Discounts option not found on sort page; continuing to first shoe.")
-    time.sleep(2)
+    time.sleep(0.6)
     try:
         size = driver.get_window_size()
         screen_w, screen_h = size["width"], size["height"]
@@ -319,8 +319,8 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
 
 def add_to_bag_select_available_size(driver) -> None:
     """On product page: click Add to bag → size pop-up opens → click available size → click DONE."""
-    wait = WebDriverWait(driver, 15)
-    time.sleep(2)
+    wait = WebDriverWait(driver, 8)
+    time.sleep(0.8)
 
     # Step 1: Click "Add to bag" first — this opens the "Select Size (UK Size)" pop-up
     add_clicked = False
