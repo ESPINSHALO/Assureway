@@ -610,7 +610,7 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         (AppiumBy.XPATH, "//*[contains(@text,'Proceed to checkout') or contains(@text,'PROCEED TO CHECKOUT')]"),
     ]:
         try:
-            btn = WebDriverWait(driver, 5).until(EC.element_to_be_clickable(checkout_loc))
+            btn = wait_checkout.until(EC.element_to_be_clickable(checkout_loc))
             btn.click()
             print("Place Order clicked")
             logger.info("Place Order clicked")
@@ -623,8 +623,8 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
             sz = driver.get_window_size()
             w, h = sz["width"], sz["height"]
             driver.swipe(w // 2, int(h * 0.6), w // 2, int(h * 0.3), 300)
-            time.sleep(0.5)
-            btn = WebDriverWait(driver, 3).until(EC.element_to_be_clickable(BagPageLocators.PROCEED_TO_CHECKOUT))
+            time.sleep(0.3)
+            btn = wait_checkout.until(EC.element_to_be_clickable(BagPageLocators.PROCEED_TO_CHECKOUT))
             btn.click()
             place_order_clicked = True
         except Exception:
