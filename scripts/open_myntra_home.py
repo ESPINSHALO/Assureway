@@ -595,7 +595,7 @@ def empty_cart_and_return_home(driver) -> None:
             if not _tap_at(driver, tx, ty):
                 ty = max(loc["y"] - 170, 200)
                 _tap_at(driver, tx, ty)
-            time.sleep(0.3)
+            time.sleep(0.1)
             logger.info("Remove icon clicked (card top-right via Qty/Size)")
         except Exception:
             try:
@@ -617,11 +617,11 @@ def empty_cart_and_return_home(driver) -> None:
             return
 
     # Step 3 — Confirmation popup (Cancel | REMOVE): click REMOVE (right button in dialog)
-    time.sleep(1.5)
+    time.sleep(0.25)
     w, h = driver.get_window_size()["width"], driver.get_window_size()["height"]
     remove_clicked = False
     # 1) Try to find REMOVE element and tap its center
-    wait_popup = WebDriverWait(driver, 6)
+    wait_popup = WebDriverWait(driver, 1.5)
     for loc in [
         (AppiumBy.ID, "android:id/button2"),
         BagPageLocators.POPUP_REMOVE_BUTTON2,
@@ -653,7 +653,7 @@ def empty_cart_and_return_home(driver) -> None:
             (int(w * 0.75), int(h * 0.60)), (int(w * 0.78), int(h * 0.55)),
         ]:
             _tap_at(driver, px, py)
-            time.sleep(0.4)
+            time.sleep(0.1)
         logger.info("Remove confirmed from popup (right-side tap)")
 
     # Step 4 — Wait for cart to be empty
@@ -681,6 +681,9 @@ def empty_cart_and_return_home(driver) -> None:
 
     if cart_emptied:
         logger.info("Cart emptied successfully")
+
+    # Wait 2 seconds in cart before returning home
+    time.sleep(2)
 
     # Step 5 — Return to Home screen: press Back until Home tab is visible
     def _on_home():
