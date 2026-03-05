@@ -700,7 +700,7 @@ def empty_cart_and_return_home(driver) -> None:
             return
         try:
             driver.back()
-            time.sleep(0.3)
+            time.sleep(0.1)
         except Exception:
             break
     if _on_home():
@@ -711,15 +711,15 @@ def empty_cart_and_return_home(driver) -> None:
 
 def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
     """After add to bag: return to home, click bottom-right bag icon to open cart, set quantity, Proceed to checkout."""
-    wait = WebDriverWait(driver, 8)
-    time.sleep(0.4)
+    wait = WebDriverWait(driver, 1.5)
+    time.sleep(0.1)
 
     # Step 1: Return to home page (cancel top-right cart; use bottom nav bag instead)
     print("Returning to home page...")
     logger.info("Returning to home page...")
     if not _return_to_home(driver):
         logger.warning("Could not return to home; will try bottom bag icon anyway.")
-    time.sleep(0.5)
+    time.sleep(0.1)
 
     # Step 2: Click bottom-right bag (cart) icon in the bottom navigation bar
     bag_clicked = False
@@ -751,12 +751,12 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         logger.warning("Bottom bag icon not found; skipping quantity/checkout.")
         return
 
-    time.sleep(0.8)  # Brief wait for bag/cart page
+    time.sleep(0.2)  # Brief wait for bag/cart page
 
     # Step 3: Set quantity to `quantity` (e.g. 2) — click Qty dropdown, then select 2
     if quantity >= 2:
         qty_set = False
-        wait_qty = WebDriverWait(driver, 2)
+        wait_qty = WebDriverWait(driver, 1.5)
         # 3a: Click the Qty dropdown (e.g. "Qty: 1")
         for qty_loc in [
             BagPageLocators.QTY_DROPDOWN,
@@ -768,7 +768,7 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
                 qty_el.click()
                 print("Qty dropdown clicked")
                 logger.info("Qty dropdown clicked")
-                time.sleep(0.5)
+                time.sleep(0.1)
                 break
             except Exception:
                 continue
