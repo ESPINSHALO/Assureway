@@ -467,12 +467,12 @@ def add_to_bag_select_available_size(driver) -> None:
         except Exception:
             pass
 
-    time.sleep(0.8)
+    time.sleep(0.3)
 
     # Step 3: Click DONE to confirm and add to bag
     done_clicked = False
     try:
-        done_btn = WebDriverWait(driver, 3).until(
+        done_btn = WebDriverWait(driver, 2).until(
             EC.element_to_be_clickable(ProductPageLocators.SIZE_DONE_BUTTON)
         )
         done_btn.click()
@@ -520,16 +520,16 @@ def _return_to_home(driver, back_presses: int = 3, max_extra_back: int = 3) -> b
     for _ in range(back_presses):
         try:
             driver.back()
-            time.sleep(0.35)
+            time.sleep(0.1)
         except Exception:
             break
-    time.sleep(0.25)
+    time.sleep(0.1)
     if _is_home():
         return True
     for _ in range(max_extra_back):
         try:
             driver.back()
-            time.sleep(0.35)
+            time.sleep(0.1)
         except Exception:
             break
         if _is_home():
@@ -542,15 +542,13 @@ def empty_cart_and_return_home(driver) -> None:
     On Shopping Bag page: click product-card X (not header), confirm REMOVE in popup,
     wait until cart is empty, then return to Home screen.
     """
-    wait_short = WebDriverWait(driver, 3)
-    wait10 = WebDriverWait(driver, 10)
+    wait_short = WebDriverWait(driver, 0.6)
+    wait10 = WebDriverWait(driver, 4)
 
-    # Step 1 — Detect Shopping Bag screen (any of: product card, title, ITEMS SELECTED, PLACE ORDER)
+    # Step 1 — Detect Shopping Bag screen (any of: product card, Qty, PLACE ORDER)
     bag_detected = False
     for loc in [
         BagPageLocators.BAG_ITEMS,
-        BagPageLocators.BAG_SCREEN_TITLE,
-        BagPageLocators.BAG_SCREEN_ITEMS_SELECTED,
         BagPageLocators.QTY_DROPDOWN,
         (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
     ]:
@@ -565,20 +563,15 @@ def empty_cart_and_return_home(driver) -> None:
         logger.warning("Shopping bag screen not detected")
         return
 
-    # Step 2 — Click the product remove (X) icon: top-right of card, often last ImageView in card
+    # Step 2 — Click the product remove (X) icon: try likely locators first, then Qty/Size fallback
     remove_icon = None
     for loc in [
-        BagPageLocators.ITEM_CLOSE_X_LAST_IMAGE,
         BagPageLocators.ITEM_CLOSE_X_BY_SIZE_CARD,
-        BagPageLocators.ITEM_CLOSE_X_LAST_CLICKABLE,
         BagPageLocators.REMOVE_ITEM,
-        BagPageLocators.ITEM_CLOSE_X_FIRST_CARD,
+        BagPageLocators.ITEM_CLOSE_X_LAST_IMAGE,
+        BagPageLocators.ITEM_CLOSE_X_LAST_CLICKABLE,
         BagPageLocators.ITEM_CLOSE_X,
-        (AppiumBy.XPATH, "(//*[contains(@resource-id,'bag_item')])[1]//android.widget.ImageButton"),
         (AppiumBy.XPATH, "//android.widget.ImageView[contains(@content-desc,'Close') or contains(@content-desc,'close')]"),
-        BagPageLocators.TRASH_DELETE_ICON,
-        (AppiumBy.XPATH, "(//*[contains(@resource-id,'bag_item')])[1]//android.widget.ImageView"),
-        (AppiumBy.XPATH, "//android.widget.ImageView[contains(@content-desc,'Remove') or contains(@content-desc,'Delete')]"),
     ]:
         try:
             remove_icon = wait_short.until(EC.element_to_be_clickable(loc))
