@@ -32,7 +32,7 @@ MYNTRA_PACKAGE = "com.myntra.android"
 TOP_RIGHT_TAP_SEC = 5       # Tap top-right X long enough to close first popup
 POPUP_HANDLING_SEC = 2      # Brief popup check so we go to search within ~2 sec of Back
 HOME_PAGE_WAIT_SEC = 0    # No extra wait — go to search immediately
-KEEP_OPEN_AFTER_SEARCH_SEC = 15
+KEEP_OPEN_AFTER_SEARCH_SEC = 5
 
 
 def _tap_at(driver, x: int, y: int) -> bool:
@@ -183,7 +183,7 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
         return False
 
     _try_click_or_tap()
-    time.sleep(0.35)
+    time.sleep(0.1)
 
     # E. Wait for search screen (EditText).
     def _find_search_input():
@@ -212,7 +212,7 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
             for y_ratio in [0.22, 0.25, 0.28]:
                 tx, ty = w // 2, int(h * y_ratio)
                 driver.tap([(tx, ty)])
-                time.sleep(0.5)
+                time.sleep(0.3)
                 search_input = _find_search_input()
                 if search_input:
                     break
@@ -227,19 +227,19 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
 
     # F & G. Click inside EditText so we can type
     search_input.click()
-    time.sleep(0.2)
+    time.sleep(0.1)
 
     # H. Clear the field
     search_input.clear()
-    time.sleep(0.1)
+    time.sleep(0.05)
 
     # I. send_keys(query)
     search_input.send_keys(query)
-    time.sleep(0.2)
+    time.sleep(0.1)
 
     # J. Submit
     driver.press_keycode(66)
-    time.sleep(0.8)
+    time.sleep(0.3)
 
     # K. Wait for results page (short timeout so we don't block 10s per locator)
     results_locators = [
@@ -250,8 +250,8 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
         (AppiumBy.XPATH, "//*[contains(@text,'SHOES') or contains(@text,'Shoes')]"),
     ]
     found = False
-    wait_results = WebDriverWait(driver, 4)
-    for by, value in results_locators:
+    wait_results = WebDriverWait(driver, 1.2)
+    for by, value in results_locators[:3]:  # Try first 3 locators only
         try:
             wait_results.until(EC.presence_of_element_located((by, value)))
             found = True
