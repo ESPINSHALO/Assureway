@@ -269,7 +269,7 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
 
 def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True) -> None:
     """On shoes listing: optional Gender → Male, then Sort → Discounts → tap first shoe."""
-    wait = WebDriverWait(driver, 8)
+    wait = WebDriverWait(driver, 2.5)
 
     # Optional: select Gender → Male, wait for list to load
     if select_male:
@@ -278,12 +278,12 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
             gender_btn.click()
             print("Gender button tapped")
             logger.info("Gender button tapped")
-            time.sleep(0.5)
+            time.sleep(0.1)
             male_opt = wait.until(EC.element_to_be_clickable(SearchPageLocators.GENDER_MALE))
             male_opt.click()
             print("Male selected")
             logger.info("Male selected")
-            time.sleep(1.0)  # Brief wait for listing after gender filter
+            time.sleep(0.25)  # Brief wait for listing after gender filter
         except Exception as e:
             logger.warning(f"Gender Male: {e}")
 
@@ -296,10 +296,10 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
     except Exception as e:
         logger.warning(f"Sort button: {e}")
         return
-    time.sleep(0.8)  # Let sort bottom sheet open
+    time.sleep(0.15)  # Let sort bottom sheet open
     # Tap "Discounts" in the sort bottom sheet (Sort by page)
     discounts_clicked = False
-    wait_disc = WebDriverWait(driver, 3)
+    wait_disc = WebDriverWait(driver, 0.8)
     for discount_loc in [
         SearchPageLocators.SORT_DISCOUNTS,
         (AppiumBy.XPATH, "//*[contains(@text,'Discount') or contains(@text,'discount')]"),
@@ -319,46 +319,56 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
             continue
     if not discounts_clicked:
         logger.warning("Discounts option not found on sort page; continuing to first shoe.")
-    time.sleep(0.6)
+    time.sleep(0.15)
+
+    # Prefer element-based click so we don't trigger scroll (tap can be interpreted as scroll)
+    wait_first = WebDriverWait(driver, 0.8)
+    for loc in [
+        SearchPageLocators.FIRST_PRODUCT_GRID_ITEM,
+        SearchPageLocators.FIRST_SHOE_PRODUCT,
+        SearchPageLocators.FIRST_BY_PRICE_CLICKABLE,
+    ]:
+        try:
+            el = wait_first.until(EC.element_to_be_clickable(loc))
+            if el and el.is_displayed():
+                el.click()
+                print("First shoe opened (element click)")
+                logger.info("First shoe opened (element click)")
+                return
+        except Exception:
+            continue
+
+    # Fallback: use clickGesture at product area (avoids driver.tap which can trigger scroll)
     try:
         size = driver.get_window_size()
         screen_w, screen_h = size["width"], size["height"]
     except Exception:
         screen_w, screen_h = 1080, 2400
-    # First shoe = strip exactly above MEN/SORT/FILTER (no banner). Tap only in this band (78%–86% from top).
     strip_min_y = int(screen_h * 0.78)
     strip_max_y = int(screen_h * 0.86)
-
-    # Tap only: left column, in the strip just above the gender section (first visible product row)
     for y_pct in [0.82, 0.80, 0.84, 0.79, 0.85]:
-        try:
-            x = int(screen_w * 0.25)
-            y = int(screen_h * y_pct)
-            if y < strip_min_y or y > strip_max_y:
-                continue
-            driver.tap([(x, y)])
-            print("First shoe opened (tap above gender)")
-            logger.info("First shoe opened (tap above gender)")
-            return
-        except Exception:
+        y = int(screen_h * y_pct)
+        if y < strip_min_y or y > strip_max_y:
             continue
+        x = int(screen_w * 0.25)
+        if _tap_at(driver, x, y):
+            print("First shoe opened (clickGesture above gender)")
+            logger.info("First shoe opened (clickGesture above gender)")
+            return
     for x_pct in [0.22, 0.28]:
-        try:
-            x = int(screen_w * x_pct)
-            y = int(screen_h * 0.82)
-            driver.tap([(x, y)])
-            print("First shoe opened (tap above gender)")
-            logger.info("First shoe opened (tap above gender)")
+        x = int(screen_w * x_pct)
+        y = int(screen_h * 0.82)
+        if _tap_at(driver, x, y):
+            print("First shoe opened (clickGesture)")
+            logger.info("First shoe opened (clickGesture)")
             return
-        except Exception:
-            continue
-    logger.warning("Could not tap first shoe.")
+    logger.warning("Could not open first shoe.")
 
 
 def add_to_bag_select_available_size(driver) -> None:
     """On product page: click Add to bag → size pop-up opens → click available size → click DONE."""
-    wait = WebDriverWait(driver, 8)
-    time.sleep(0.8)
+    wait = WebDriverWait(driver, 3)
+    time.sleep(0.2)
 
     # Step 1: Click "Add to bag" first — this opens the "Select Size (UK Size)" pop-up
     add_clicked = False
@@ -412,7 +422,7 @@ def add_to_bag_select_available_size(driver) -> None:
         logger.warning("Add to bag button not found; skipping size pop-up flow.")
         return
 
-    time.sleep(0.6)  # Brief wait for Select Size pop-up
+    time.sleep(0.25)  # Brief wait for Select Size pop-up
 
     # Step 2: In the pop-up, click the first available size (try 5, then 6, 7, 8, 9, 10; only non-greyed are clickable)
     size_clicked = False
