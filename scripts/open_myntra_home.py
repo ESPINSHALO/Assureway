@@ -804,7 +804,7 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
                     break
                 except Exception:
                     continue
-        time.sleep(0.2)
+        time.sleep(0.1)
         # 3c: Click DONE to confirm quantity and close dropdown
         try:
             done_btn = WebDriverWait(driver, 2).until(
@@ -820,11 +820,11 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
                 print("DONE clicked")
             except Exception:
                 pass
-        time.sleep(0.4)
+        time.sleep(0.1)
 
     # Step 4: Click Place Order
     place_order_clicked = False
-    wait_checkout = WebDriverWait(driver, 3)
+    wait_checkout = WebDriverWait(driver, 1.5)
     for checkout_loc in [
         (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
         (AppiumBy.ID, "com.myntra.android:id/checkout"),
@@ -859,9 +859,9 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
             logger.warning(f"Proceed to checkout not found: {e}")
 
     # Step 5: If login screen opens after Place Order, click X (top right) to close and return to home
-    time.sleep(0.8)
+    time.sleep(0.15)
     login_closed = False
-    wait_close = WebDriverWait(driver, 2)
+    wait_close = WebDriverWait(driver, 0.8)
     for close_loc in [
         PopupLocators.ONBOARDING_CLOSE,
         PopupLocators.CLOSE_BUTTON,
@@ -888,14 +888,14 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         except Exception:
             pass
     if login_closed:
-        time.sleep(0.5)
+        time.sleep(0.1)
         _return_to_home(driver)
         # Let home screen settle so bottom nav (bag icon) is ready
         try:
-            WebDriverWait(driver, 5).until(EC.visibility_of_element_located(HomePageLocators.HOME_TAB))
+            WebDriverWait(driver, 1).until(EC.visibility_of_element_located(HomePageLocators.HOME_TAB))
         except Exception:
             pass
-        time.sleep(1.0)
+        time.sleep(0.15)
 
     # Step 6: Open cart again (bottom bag), wait for Shopping Bag screen, then empty cart
     logger.info("Opening cart to empty it...")
