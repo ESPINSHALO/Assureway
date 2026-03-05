@@ -906,7 +906,7 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         (AppiumBy.XPATH, "//*[contains(@content-desc,'Bag') or contains(@content-desc,'Cart')]"),
     ]:
         try:
-            bag_el = WebDriverWait(driver, 8).until(EC.element_to_be_clickable(bag_loc))
+            bag_el = WebDriverWait(driver, 1.5).until(EC.element_to_be_clickable(bag_loc))
             bag_el.click()
             cart_opened = True
             print("Cart opened again")
@@ -924,7 +924,7 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         except Exception:
             pass
     if cart_opened:
-        time.sleep(1.0)
+        time.sleep(0.2)
         empty_cart_and_return_home(driver)
     else:
         logger.warning("Could not reopen cart to empty it")
@@ -935,7 +935,7 @@ def main(stay_open: bool = False, select_male: bool = True) -> bool:
     STEP 1: Launch app
     ~1s: Press Back once to reach home
     2s: Click search bar and type "shoes"
-    STEP 5: Keep app open 15 sec (or --stay until Ctrl+C)
+    STEP 5: Keep app open 5 sec (or --stay until Ctrl+C)
     STEP 6: Quit driver
     """
     driver = None
@@ -975,15 +975,15 @@ def main(stay_open: bool = False, select_male: bool = True) -> bool:
         logger.info("STEP 4c: Select available size (6,7,8,9,10), Add to bag")
         print("STEP 4c: Select available size → Add to bag")
         add_to_bag_select_available_size(driver)
-        time.sleep(0.5)
+        time.sleep(0.15)
 
         # STEP 4d: Return to home → click bottom-right bag icon → quantity 2 → Proceed to checkout
         logger.info("STEP 4d: Home → bottom bag → quantity 2 → Proceed to checkout")
         print("STEP 4d: Return to home → bottom bag → quantity 2 → Proceed to checkout")
         open_cart_increase_quantity_and_checkout(driver, quantity=2)
-        time.sleep(1)
+        time.sleep(0.2)
 
-        # STEP 5: Keep app open 15 seconds after search completes
+        # STEP 5: Keep app open 5 seconds after search completes
         if stay_open:
             logger.info("STEP 5: Keeping app open until Ctrl+C (--stay)")
             print("STEP 5: App open. Press Ctrl+C to close.")
