@@ -823,41 +823,50 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
         # Brief wait for dropdown to close and cart to settle
         time.sleep(0.25)
 
-    # Step 4: Click Place Order
+    # Step 4: Click Place Order — tap at bottom first (button is always there)
     place_order_clicked = False
-    wait_checkout = WebDriverWait(driver, 1.5)
-    for checkout_loc in [
-        (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
-        (AppiumBy.ID, "com.myntra.android:id/checkout"),
-        BagPageLocators.PROCEED_TO_CHECKOUT,
-        (AppiumBy.XPATH, "//*[contains(@text,'Proceed to checkout') or contains(@text,'PROCEED TO CHECKOUT')]"),
-    ]:
-        try:
-            btn = wait_checkout.until(EC.element_to_be_clickable(checkout_loc))
-            btn.click()
-            print("Place Order clicked")
-            logger.info("Place Order clicked")
+    try:
+        sz = driver.get_window_size()
+        w, h = sz["width"], sz["height"]
+        if _tap_at(driver, w // 2, int(h * 0.92)):
             place_order_clicked = True
-            break
-        except Exception:
-            continue
+            print("Place Order tapped (bottom)")
+            logger.info("Place Order tapped (bottom)")
+    except Exception:
+        pass
     if not place_order_clicked:
-        try:
-            sz = driver.get_window_size()
-            w, h = sz["width"], sz["height"]
-            driver.swipe(w // 2, int(h * 0.6), w // 2, int(h * 0.3), 300)
-            time.sleep(0.3)
-            btn = wait_checkout.until(EC.element_to_be_clickable(BagPageLocators.PROCEED_TO_CHECKOUT))
-            btn.click()
-            place_order_clicked = True
-        except Exception:
-            pass
-    if not place_order_clicked:
-        try:
-            driver.tap([(driver.get_window_size()["width"] // 2, int(driver.get_window_size()["height"] * 0.92))])
-            print("Proceed to checkout tapped (position)")
-        except Exception as e:
-            logger.warning(f"Proceed to checkout not found: {e}")
+        wait_place = WebDriverWait(driver, 0.8)
+        for checkout_loc in [
+            (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
+            (AppiumBy.ID, "com.myntra.android:id/checkout"),
+            BagPageLocators.PROCEED_TO_CHECKOUT,
+        ]:
+            try:
+                btn = wait_place.until(EC.presence_of_element_located(checkout_loc))
+                if btn and btn.is_displayed():
+                    try:
+                        btn.click()
+                        place_order_clicked = True
+                    except Exception:
+                        try:
+                            r = btn.rect
+                            if _tap_at(driver, r["x"] + r["width"] // 2, r["y"] + r["height"] // 2):
+                                place_order_clicked = True
+                        except Exception:
+                            pass
+                    if place_order_clicked:
+                        print("Place Order clicked")
+                        logger.info("Place Order clicked")
+                        break
+            except Exception:
+                continue
+        if not place_order_clicked:
+            try:
+                sz = driver.get_window_size()
+                _tap_at(driver, sz["width"] // 2, int(sz["height"] * 0.92))
+                print("Place Order tapped (fallback)")
+            except Exception as e:
+                logger.warning(f"Place Order not found: {e}")
 
     # Step 5: If login screen opens after Place Order, click X (top right) to close and return to home
     time.sleep(0.15)
