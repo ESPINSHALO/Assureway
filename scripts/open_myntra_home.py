@@ -804,7 +804,7 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
                     break
                 except Exception:
                     continue
-        time.sleep(0.1)
+        time.sleep(0.05)
         # 3c: Click DONE to confirm quantity and close dropdown
         try:
             done_btn = WebDriverWait(driver, 2).until(
