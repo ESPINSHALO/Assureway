@@ -860,6 +860,32 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
                         break
             except Exception:
                 continue
+    if not place_order_clicked:
+        wait_place = WebDriverWait(driver, 0.8)
+        for checkout_loc in [
+            (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
+            (AppiumBy.ID, "com.myntra.android:id/checkout"),
+            BagPageLocators.PROCEED_TO_CHECKOUT,
+        ]:
+            try:
+                btn = wait_place.until(EC.presence_of_element_located(checkout_loc))
+                if btn and btn.is_displayed():
+                    try:
+                        btn.click()
+                        place_order_clicked = True
+                    except Exception:
+                        try:
+                            r = btn.rect
+                            if _tap_at(driver, r["x"] + r["width"] // 2, r["y"] + r["height"] // 2):
+                                place_order_clicked = True
+                        except Exception:
+                            pass
+                    if place_order_clicked:
+                        print("Place Order clicked")
+                        logger.info("Place Order clicked")
+                        break
+            except Exception:
+                continue
         if not place_order_clicked:
             try:
                 sz = driver.get_window_size()
