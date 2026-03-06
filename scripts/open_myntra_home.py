@@ -820,7 +820,8 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
                 print("DONE clicked")
             except Exception:
                 pass
-        time.sleep(0.1)
+        # Brief wait for dropdown to close and cart to settle
+        time.sleep(0.25)
 
     # Step 4: Click Place Order
     place_order_clicked = False
