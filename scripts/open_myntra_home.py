@@ -241,17 +241,18 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
     driver.press_keycode(66)
     time.sleep(0.3)
 
-    # K. Wait for results page (short timeout so we don't block 10s per locator)
+    # K. Wait for results page (SORT/GENDER appear on listing; recycler IDs may vary by app version)
     results_locators = [
+        SearchPageLocators.SORT_BUTTON,  # Listing page has SORT at bottom
+        SearchPageLocators.GENDER_BUTTON,  # Listing has GENDER filter
         (AppiumBy.ID, "com.myntra.android:id/search_results_recycler"),
         (AppiumBy.CLASS_NAME, "androidx.recyclerview.widget.RecyclerView"),
         (AppiumBy.XPATH, "//*[contains(@resource-id, 'result')]"),
-        SearchPageLocators.SORT_BUTTON,  # Shoes/category page has SORT at bottom
         (AppiumBy.XPATH, "//*[contains(@text,'SHOES') or contains(@text,'Shoes')]"),
     ]
     found = False
-    wait_results = WebDriverWait(driver, 1.2)
-    for by, value in results_locators[:3]:  # Try first 3 locators only
+    wait_results = WebDriverWait(driver, 1.5)
+    for by, value in results_locators:
         try:
             wait_results.until(EC.presence_of_element_located((by, value)))
             found = True

@@ -76,6 +76,7 @@ Assureway/
 ├── scripts/
 │   └── open_myntra_home.py   # Full flow: launch → search → bag → empty cart → home
 ├── tests/
+│   ├── __init__.py
 │   ├── test_app_launch.py
 │   ├── test_home_screen.py
 │   ├── test_search_flow.py
@@ -87,9 +88,11 @@ Assureway/
 │   ├── waits.py
 │   └── __init__.py
 ├── reports/                  # Logs (e.g. automation_YYYYMMDD.log)
-├── conftest.py
+├── .gitignore
+├── conftest.py               # Pytest fixtures (driver, page objects, app_launched)
 ├── pytest.ini
 ├── requirements.txt
+├── run_tests.sh              # Shell script to run pytest
 └── README.md
 ```
 
