@@ -23,22 +23,26 @@ The script **`scripts/open_myntra_home.py`** runs a full user journey in human t
 
 5. **Product and add to bag** – On the product page it taps **Add to bag**. When the size pop-up appears it picks the first available size from 5–10 and taps **DONE**.
 
-6. **Bag and quantity** – It goes back to home, opens the **bag** from the bottom navigation, sets **quantity to 2** via the quantity dropdown and confirms with **DONE**, then taps **Place Order**.
+6. **Bag and quantity** – It goes back to home, opens the **bag** from the bottom navigation, sets **quantity to 2** via the quantity dropdown and confirms with **DONE**. Then it taps **Place Order** by tapping at the bottom of the screen first (where the button always is), so there is no page scroll or long wait. If that tap does not work, it tries to find the Place Order button by locators and clicks it.
 
 7. **Login prompt** – If a login screen appears after Place Order, the script closes it (X or top-right tap) and returns to the home screen.
 
-8. **Empty cart** – It opens the bag again. On the Shopping Bag screen it finds the product card (using “Qty” or “Size” to know where the card is) and taps the **X** at the top-right of that card. When the confirmation popup appears (**Cancel** and **REMOVE**), it taps **REMOVE** (by finding the button or by tapping the right side of the dialog where REMOVE usually is). Then it presses Back until the Home tab is visible.
+8. **Empty cart** – It opens the bag again. On the Shopping Bag screen it finds the product card (using “Qty” or “Size” to know where the card is) and taps the **X** at the top-right of that card. When the confirmation popup appears (**Cancel** and **REMOVE**), it taps **REMOVE** (by finding the button or by tapping the right side of the dialog). It then waits **2 seconds** in the cart before pressing Back until the Home tab is visible.
 
-9. **Finish** – The app stays open for 15 seconds (or until you press Ctrl+C if you use `--stay`), then the driver quits.
+9. **Finish** – The app stays open for **5 seconds** (or until you press Ctrl+C if you use `--stay`), then the driver quits.
 
-All of this is done with **explicit waits** and **element-based** actions where possible. A small helper is used for taps that must be by position (e.g. the card X and the REMOVE button), using Appium’s mobile gesture or W3C actions so taps register reliably.
+**Search results** – The script checks that the results page has loaded by looking for the **SORT** or **GENDER** buttons on the listing (they appear on the shoes page), then falls back to recycler/result locators if needed. This makes “Search results loaded” show correctly even when the app uses different IDs.
+
+**First product** – It tries to open the first shoe by **clicking the product element** (so the page does not scroll by mistake). If that fails, it uses a tap in the product area with a click-style gesture.
+
+All of this uses **explicit waits** and **element-based** actions where possible. A small helper is used for taps that must be by position (e.g. the card X and the REMOVE button), using Appium’s mobile gesture or W3C actions so taps register reliably. Waits and timeouts have been tuned so the flow runs faster without skipping steps.
 
 ## How to run the main script
 
 From the project root with the virtual environment activated:
 
 ```bash
-# Full flow, then app stays open 15 seconds and closes
+# Full flow, then app stays open 5 seconds and closes
 python scripts/open_myntra_home.py
 
 # Keep the app open until you press Ctrl+C
@@ -137,6 +141,15 @@ pytest -v -s
 | Add to bag      | Select size, add item, bag          |
 | Bag operations  | Remove item, quantity, checkout     |
 | Navigation      | Scroll, transitions, popups         |
+
+## Recent updates
+
+- **Place Order** – Tap at the bottom of the cart screen first so the button is clicked right away, with no scroll and no long wait. If the tap fails, the script falls back to finding the button by locators.
+- **Keep-open time** – Reduced to 5 seconds at the end of the run (was 15 seconds).
+- **Search results check** – Listing page is detected by SORT and GENDER buttons first, so “Search results loaded” appears correctly even when the app uses different result IDs.
+- **First shoe** – Prefer clicking the product element so the page does not scroll; use a click-style tap only if needed.
+- **Empty cart** – After tapping REMOVE in the confirmation popup, the script waits 2 seconds in the cart before going back to home.
+- **Timing** – Waits and timeouts across the flow were reduced so the full run finishes sooner while still being stable.
 
 ## Notes
 
