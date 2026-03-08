@@ -9,6 +9,16 @@ Appium and Python automation framework for testing the Myntra Android app on an 
 - **Covers bag and checkout**: opens the bag from home, changes quantity, taps Place Order, handles the login screen (closes it and returns), then removes the item and returns to home.
 - Uses **explicit waits**, **reusable helpers**, and **element-based** actions where possible, with position-based taps only where the UI requires it.
 
+## Tech Stack
+
+* Python – Automation scripting
+* Appium – Mobile automation framework
+* UiAutomator2 – Android driver for Appium
+* Pytest – Test runner and framework
+* pytest-html – HTML report generation
+* Android Emulator – Test execution environment
+* ADB – Android device communication
+
 ---
 
 ## Quick start
@@ -91,6 +101,33 @@ Tests are ordered by design: app launch → home → search flow → cart and ch
 - **Failure screenshots** – When a test fails, a screenshot is written to **reports/screenshots/** and the path is printed (e.g. `[pytest] Screenshot saved: .../reports/screenshots/test_xxx_20260308_125657.png`).
 
 - **Logs** – Automation logs (e.g. `reports/automation_YYYYMMDD.log`) are generated when the script or tests run; `*.log` is in `.gitignore`. The `reports/` folder may contain `report.html` and `reports/screenshots/`; these can be committed if you want to share them.
+
+## Test Execution Result
+
+All automated test cases executed successfully.
+
+Example terminal output:
+
+16 passed in ~23 minutes
+
+The test suite includes:
+
+* Smoke tests
+* Functional tests
+* Cart and checkout validation
+* Full end-to-end user journey
+
+## Framework Architecture
+
+Test Cases (pytest)
+↓
+Page Object Model
+↓
+Reusable Utilities (waits, logger)
+↓
+Appium Driver
+↓
+Android Emulator (Myntra App)
 
 ---
 
