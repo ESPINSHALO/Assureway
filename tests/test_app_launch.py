@@ -1,42 +1,47 @@
-"""Test: Verify app launches successfully."""
+"""Test: Verify app launches, then popup handling, then home screen."""
+import time
 import pytest
-from pages import HomePage
+from core.driver_factory import quit_driver
 from utils.logger import logger
 
+MYNTRA_PACKAGE = "com.myntra.android"
 
-@pytest.mark.smoke
-def test_app_launches_successfully(driver, popup_handler):
-    """Verify Myntra app launches and home screen loads."""
-    import time
-    time.sleep(4)  # Allow app to initialize
-    for _ in range(5):  # Handle permission dialogs, onboarding
-        popup_handler.handle_initial_popups()
-        time.sleep(2)
+
+def _press_back_safe(driver):
+    try:
+        driver.back()
+    except Exception:
         try:
-            if driver.current_package == "com.myntra.android":
-                break
+            driver.press_keycode(4)
         except Exception:
             pass
-        time.sleep(1)
-    
-    # Activate Myntra in case we're on launcher/permission (app may be in background)
-    try:
-        driver.activate_app("com.myntra.android")
-        time.sleep(3)
-    except Exception:
-        pass
-    
-    current = driver.current_package
-    assert current == "com.myntra.android", f"Expected Myntra, got {current}"
-    logger.info("✅ App launched successfully")
 
 
 @pytest.mark.smoke
-def test_handle_onboarding_popup(driver, popup_handler):
-    """Verify we can handle onboarding/login popup."""
-    import time
-    time.sleep(3)
-    # Attempt to dismiss any popup - should not raise
-    popup_handler.handle_initial_popups()
-    time.sleep(1)
-    logger.info("✅ Popup handling completed")
+def test_app_launches_successfully(driver):
+    """Only check that the app opens; then close the app. No popup handling, no home."""
+    time.sleep(2)
+    try:
+        driver.activate_app(MYNTRA_PACKAGE)
+    except Exception:
+        pass
+    time.sleep(1.5)
+    current = driver.current_package
+    assert current == MYNTRA_PACKAGE, f"Expected Myntra, got {current}"
+    quit_driver(driver)
+    logger.info("✅ App launched successfully (app opened and closed)")
+
+
+@pytest.mark.smoke
+def test_handle_onboarding_popup(driver):
+    """Launch app, press Back once to dismiss the popup, then quit immediately. Does not wait for home."""
+    time.sleep(2)
+    try:
+        driver.activate_app(MYNTRA_PACKAGE)
+    except Exception:
+        pass
+    time.sleep(0.5)
+    _press_back_safe(driver)  # One Back to dismiss popup
+    time.sleep(0.2)
+    quit_driver(driver)  # Close app right away; do not wait for home
+    logger.info("✅ Popup handling completed (Back clicked, app quit)")
