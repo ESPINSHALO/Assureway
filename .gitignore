@@ -5,6 +5,7 @@ __pycache__/
 *.so
 .Python
 reports/
+screenshots/
 *.log
 .pytest_cache/
 .coverage
