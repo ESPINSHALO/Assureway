@@ -36,9 +36,16 @@ class PopupHandler(BasePage):
         # If already on HOME – do NOT tap top-right (that would open Profile)
         try:
             if self.driver.current_package == "com.myntra.android":
-                on_home = element_exists(self.driver, HomePageLocators.HOME_INDICATOR, timeout=0.5)
-                if on_home:
-                    return False
+                home_locators = (
+                    HomePageLocators.HOME_INDICATOR,
+                    HomePageLocators.HOME_TAB,
+                    HomePageLocators.HOME_TAB_ALT,
+                    HomePageLocators.SEARCH_CONTAINER,
+                    HomePageLocators.SEARCH_CONTAINER_XPATH,
+                )
+                for loc in home_locators:
+                    if element_exists(self.driver, loc, timeout=1.0):
+                        return False
         except Exception:
             pass
 
