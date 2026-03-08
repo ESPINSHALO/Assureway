@@ -1,170 +1,153 @@
 # Mobile App Automation Testing for Myntra
 
-Appium + Python automation framework for testing the Myntra Android application on an emulator.
+Appium and Python automation framework for testing the Myntra Android app on an emulator. The project includes a standalone automation script for a full user journey and a pytest test suite with clear test order, failure screenshots, and HTML reports.
 
-## Project goals
+## What this project does
 
-- Launch the Myntra app and reach the home screen (dismiss onboarding with Back).
-- Search for products (e.g. shoes), apply filters and sort, open a product and add it to the bag.
-- Change quantity in the bag, proceed to Place Order, handle the login prompt if it appears, then empty the cart and return to home.
-- Use explicit waits, clear logging, and reusable helpers (no coordinate hacks where avoidable).
+- **Launches** the Myntra app and handles the first screen (splash or onboarding) with a single Back press so the app reaches home instead of closing.
+- **Searches** for products (e.g. shoes), applies Gender and Sort filters, opens a product, selects size, and adds it to the bag.
+- **Covers bag and checkout**: opens the bag from home, changes quantity, taps Place Order, handles the login screen (closes it and returns), then removes the item and returns to home.
+- Uses **explicit waits**, **reusable helpers**, and **element-based** actions where possible, with position-based taps only where the UI requires it.
 
-## Main automation flow (end-to-end script)
+---
 
-The script **`scripts/open_myntra_home.py`** runs a full user journey in human terms:
+## Quick start
 
-1. **Launch** – Start the Myntra app and create the Appium session.
-
-2. **Reach home** – Wait for the first screen (splash/onboarding) to show, then press Back once so the app goes to the home screen instead of exiting. No extra Back presses so the app does not close.
-
-3. **Search** – Go to the search bar, type **shoes**, and submit. If the profile screen opens in between, it presses Back once and continues. Search uses short timeouts and several locators so the bar is found quickly.
-
-4. **Results and filters** – On the shoes listing, it selects **Gender → Male**, opens **Sort**, chooses **Discounts**, then opens the **first shoe** in the list (tap in the product area so it does not hit banners or filters).
-
-5. **Product and add to bag** – On the product page it taps **Add to bag**. When the size pop-up appears it picks the first available size from 5–10 and taps **DONE**.
-
-6. **Bag and quantity** – It goes back to home, opens the **bag** from the bottom navigation, sets **quantity to 2** via the quantity dropdown and confirms with **DONE**. Then it taps **Place Order** by tapping at the bottom of the screen first (where the button always is), so there is no page scroll or long wait. If that tap does not work, it tries to find the Place Order button by locators and clicks it.
-
-7. **Login prompt** – If a login screen appears after Place Order, the script closes it (X or top-right tap) and returns to the home screen.
-
-8. **Empty cart** – It opens the bag again. On the Shopping Bag screen it finds the product card (using “Qty” or “Size” to know where the card is) and taps the **X** at the top-right of that card. When the confirmation popup appears (**Cancel** and **REMOVE**), it taps **REMOVE** (by finding the button or by tapping the right side of the dialog). It then waits **2 seconds** in the cart before pressing Back until the Home tab is visible.
-
-9. **Finish** – The app stays open for **5 seconds** (or until you press Ctrl+C if you use `--stay`), then the driver quits.
-
-**Search results** – The script checks that the results page has loaded by looking for the **SORT** or **GENDER** buttons on the listing (they appear on the shoes page), then falls back to recycler/result locators if needed. This makes “Search results loaded” show correctly even when the app uses different IDs.
-
-**First product** – It tries to open the first shoe by **clicking the product element** (so the page does not scroll by mistake). If that fails, it uses a tap in the product area with a click-style gesture.
-
-All of this uses **explicit waits** and **element-based** actions where possible. A small helper is used for taps that must be by position (e.g. the card X and the REMOVE button), using Appium’s mobile gesture or W3C actions so taps register reliably. Waits and timeouts have been tuned so the flow runs faster without skipping steps.
-
-## How to run the main script
-
-From the project root with the virtual environment activated:
+**Prerequisites:** Python 3.10+, Android emulator with Myntra installed, Appium server and UiAutomator2 driver, ADB.
 
 ```bash
-# Full flow, then app stays open 5 seconds and closes
+python -m venv venv
+source venv/bin/activate   # macOS/Linux  |  venv\Scripts\activate on Windows
+pip install -r requirements.txt
+```
+
+Start the emulator and run Appium (`appium`) before executing the script or tests.
+
+---
+
+## Run the automation script (full flow, no pytest)
+
+From the project root with the virtual environment active:
+
+```bash
+# Full flow, then app closes after a short delay
 python scripts/open_myntra_home.py
 
 # Keep the app open until you press Ctrl+C
 python scripts/open_myntra_home.py --stay
 
-# Skip selecting Gender = Male on the shoes page
+# Skip selecting Gender = Male on the shoes listing
 python scripts/open_myntra_home.py --no-male
 ```
 
-**Before running:** Start the Appium server (`appium`) and have the Android emulator running with the Myntra app installed.
+The script runs: launch → reach home → search “shoes” → Gender Male, Sort Discounts → open first product → add to bag (size + DONE) → home → open bag → quantity 2 → Place Order → close login if shown → open bag again → remove item → empty cart → return home.
+
+---
+
+## Run the test suite (pytest)
+
+Tests run in a fixed order so the flow makes sense. Each test gets a new driver session.
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run all tests and generate an HTML report
+pytest tests/ -v --html=reports/report.html --self-contained-html
+
+# Run a single test file
+pytest tests/test_app_launch.py -v
+
+# Run a single test
+pytest tests/test_search_flow.py::test_sort_select_discounts -v
+```
+
+**On failure:** A screenshot is saved under `reports/screenshots/` with a name like `test_name_YYYYMMDD_HHMMSS.png`. The path is printed in the terminal.
+
+---
+
+## Test structure and order
+
+Tests are ordered by design: app launch → home → search flow → cart and checkout → full end-to-end.
+
+| Order | File | What it covers |
+|-------|------|-----------------|
+| 1 | **test_app_launch.py** | (1) App opens and is closed immediately. (2) App opens, Back is pressed to dismiss the popup, then the app is closed (no wait for home). |
+| 2 | **test_home_screen.py** | (1) Home screen loads (search bar or Home tab visible). (2) Search icon is tappable and opens search. |
+| 3 | **test_search_flow.py** | Search “shoes”, then in order: listing visible → Gender Male → Sort Discounts → open first product → select size and add to bag. |
+| 4 | **test_cart_checkout_flow.py** | After add-to-bag setup: navigate to home → open cart, set quantity to 2, DONE → click Place Order and confirm login screen → back from login → remove product from cart → verify empty cart and return home. |
+| 5 | **test_full_e2e_flow.py** | Single test that runs the full journey in one go (popups → search → filters → add to bag → cart → Place Order → back from login → remove → home). |
+
+**Total:** 16 test cases across 5 files. The first three tests focus only on launch, popup handling, and home; the rest cover search, product, bag, and checkout.
+
+---
+
+## Reports and screenshots
+
+- **HTML report** – Generate with:  
+  `pytest tests/ -v --html=reports/report.html --self-contained-html`  
+  Open `reports/report.html` in a browser.
+
+- **Failure screenshots** – When a test fails, a screenshot is written to **reports/screenshots/** and the path is printed (e.g. `[pytest] Screenshot saved: .../reports/screenshots/test_xxx_20260308_125657.png`).
+
+- **Logs** – Automation logs (e.g. `reports/automation_YYYYMMDD.log`) are generated when the script or tests run; `*.log` is in `.gitignore`. The `reports/` folder may contain `report.html` and `reports/screenshots/`; these can be committed if you want to share them.
+
+---
 
 ## Project structure
 
 ```
 Assureway/
-├── config/
-│   ├── capabilities.py      # Appium capabilities (app package, activity)
-│   └── __init__.py
-├── core/
-│   ├── driver_factory.py     # Appium WebDriver creation (implicit wait 0)
-│   └── __init__.py
-├── pages/
-│   ├── locators.py           # Element locators (search, bag, product, popup)
-│   ├── base_page.py
-│   ├── home_page.py
-│   ├── search_page.py
-│   ├── product_page.py
-│   ├── bag_page.py
-│   ├── popup_handler.py
-│   └── __init__.py
+├── config/              # Appium capabilities (app package, activity)
+├── core/                # Driver creation and teardown
+├── pages/               # Page objects and locators (home, search, product, bag, popup)
 ├── scripts/
-│   └── open_myntra_home.py   # Full flow: launch → search → bag → empty cart → home
+│   └── open_myntra_home.py   # Standalone automation: full flow from launch to empty cart
 ├── tests/
-│   ├── __init__.py
-│   ├── test_app_launch.py
-│   ├── test_home_screen.py
-│   ├── test_search_flow.py
-│   ├── test_add_to_bag.py
-│   ├── test_bag_operations.py
-│   └── test_navigation.py
-├── utils/
-│   ├── logger.py
-│   ├── waits.py
-│   └── __init__.py
-├── reports/                  # Logs (e.g. automation_YYYYMMDD.log)
-├── .gitignore
-├── conftest.py               # Pytest fixtures (driver, page objects, app_launched)
+│   ├── test_app_launch.py    # App launch and popup handling
+│   ├── test_home_screen.py   # Home load and search icon
+│   ├── test_search_flow.py  # Search, filters, product, add to bag
+│   ├── test_cart_checkout_flow.py  # Cart, quantity, Place Order, login, remove, empty
+│   └── test_full_e2e_flow.py # Single full end-to-end test
+├── utils/               # Logger, waits, helpers
+├── reports/             # report.html, screenshots/, logs (optional)
+├── conftest.py          # Pytest fixtures, test order, screenshot-on-failure hook
 ├── pytest.ini
 ├── requirements.txt
-├── run_tests.sh              # Shell script to run pytest
 └── README.md
 ```
 
-## Prerequisites
-
-1. **Python 3.10+** and a virtual environment.
-2. **Android Studio** – SDK and emulator.
-3. **Appium** – e.g. `npm install -g appium`.
-4. **UiAutomator2** – `appium driver install uiautomator2`.
-5. **ADB** – from Android SDK.
-6. **Myntra app** – installed on the emulator (Play Store or APK).
-
-## Setup
-
-```bash
-python -m venv venv
-source venv/bin/activate   # macOS/Linux
-# or: venv\Scripts\activate   # Windows
-
-pip install -r requirements.txt
-```
-
-Start the emulator, install Myntra, then start Appium: `appium`.
+---
 
 ## Configuration
 
-- **App package and activity** – Set in `config/capabilities.py`. To see the current activity when Myntra is open:  
+- **App package and activity** – In `config/capabilities.py`. To see the current activity:  
   `adb shell dumpsys window | grep -E 'mCurrentFocus'`
-- **Locators** – Adjust `pages/locators.py` after inspecting the app in Appium Inspector (search bar, bag icon, product card X, REMOVE button, etc.).
+- **Locators** – In `pages/locators.py`. Update after inspecting the app in Appium Inspector (search bar, bag icon, product card, REMOVE button, etc.).
 
-## Running tests (pytest)
+---
 
-```bash
-pytest
-pytest --html=reports/report.html --self-contained-html
-pytest tests/test_app_launch.py -v
-pytest -v -s
-```
+## Design choices
 
-## Test scenarios covered
+- **Test order** – Defined in `conftest.py` (`TEST_FILE_ORDER` and `TEST_ORDER_IN_FILE`) so pytest runs tests in a logical flow.
+- **No skips for setup** – If a step (e.g. add to bag) fails, the test fails with a clear assertion instead of being skipped, so you see real failures and get a screenshot.
+- **Retries for add-to-bag setup** – Cart and checkout tests retry the add-to-bag setup (search → gender → sort → open product → add to bag) up to twice to reduce flakiness when the emulator is slow.
+- **First three tests** – Test 1 only checks that the app opens and then closes it. Test 2 opens the app, presses Back once to dismiss the popup, then closes the app. Test 3 uses the full “app launched” fixture and asserts that the home screen is visible.
 
-| Test            | Description                          |
-|-----------------|--------------------------------------|
-| App launch      | App starts and home loads            |
-| Onboarding      | Login/skip dialogs handled           |
-| Home screen     | Search icon and navigation           |
-| Search flow     | Tap search, enter "shoes", results   |
-| Product details | Open product, details page          |
-| Add to bag      | Select size, add item, bag          |
-| Bag operations  | Remove item, quantity, checkout     |
-| Navigation      | Scroll, transitions, popups         |
-
-## Recent updates
-
-- **Place Order** – Tap at the bottom of the cart screen first so the button is clicked right away, with no scroll and no long wait. If the tap fails, the script falls back to finding the button by locators.
-- **Keep-open time** – Reduced to 5 seconds at the end of the run (was 15 seconds).
-- **Search results check** – Listing page is detected by SORT and GENDER buttons first, so “Search results loaded” appears correctly even when the app uses different result IDs.
-- **First shoe** – Prefer clicking the product element so the page does not scroll; use a click-style tap only if needed.
-- **Empty cart** – After tapping REMOVE in the confirmation popup, the script waits 2 seconds in the cart before going back to home.
-- **Timing** – Waits and timeouts across the flow were reduced so the full run finishes sooner while still being stable.
-
-## Notes
-
-- **Locators** – Myntra may use custom IDs; update `pages/locators.py` with Appium Inspector.
-- **Emulator** – Fully boot before running the script or tests.
-- **Appium** – Must be running before execution.
-- **Logs** – Written under `reports/` (e.g. `automation_YYYYMMDD.log`).
+---
 
 ## Tools and technologies
 
 - **Appium** – Mobile automation
-- **UiAutomator2** – Android driver
-- **Python** – Script and tests
-- **pytest** – Test runner
-- **Appium Python Client** – Appium bindings
+- **UiAutomator2** – Android driver for Appium
+- **Python** – Automation and tests
+- **pytest** – Test runner, with pytest-html for reports
+- **Appium Python Client** – Appium bindings for Python
+
+---
+
+## Notes
+
+- Ensure the emulator is fully booted and the Myntra app is installed before running.
+- Start the Appium server before executing the script or tests.
+- If the app UI changes, update `pages/locators.py` using Appium Inspector.
