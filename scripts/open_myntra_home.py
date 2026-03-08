@@ -147,8 +147,8 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
         (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().textContains("Jeans")'),
         (AppiumBy.CLASS_NAME, "android.widget.EditText"),
     ]
-    # Short timeouts so we fail fast and try next locator (driver implicit_wait should be 0)
-    wait_search = WebDriverWait(driver, 0.8)
+    # Allow time for home/search bar to be ready (emulator can be slower under automation)
+    wait_search = WebDriverWait(driver, 2.5)
     for by, value in search_container_locators:
         try:
             el = wait_search.until(EC.visibility_of_element_located((by, value)))
@@ -251,7 +251,7 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
         (AppiumBy.XPATH, "//*[contains(@text,'SHOES') or contains(@text,'Shoes')]"),
     ]
     found = False
-    wait_results = WebDriverWait(driver, 1.5)
+    wait_results = WebDriverWait(driver, 6)
     for by, value in results_locators:
         try:
             wait_results.until(EC.presence_of_element_located((by, value)))
@@ -266,6 +266,82 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
         # Don't raise — shoes/listing page often loads with different IDs; script continues to Sort + first shoe
         print("Results page may use different structure; continuing to Sort and first shoe.")
         logger.info("Results container not found by locator; continuing (listing page may use different structure).")
+
+
+def select_gender_male(driver) -> bool:
+    """On listing page: click Gender, then select Male. Returns True if both steps succeeded."""
+    wait = WebDriverWait(driver, 4)
+    try:
+        gender_btn = wait.until(EC.element_to_be_clickable(SearchPageLocators.GENDER_BUTTON))
+        gender_btn.click()
+        logger.info("Gender button tapped")
+        time.sleep(0.15)
+        male_opt = wait.until(EC.element_to_be_clickable(SearchPageLocators.GENDER_MALE))
+        male_opt.click()
+        logger.info("Male selected")
+        time.sleep(0.25)
+        return True
+    except Exception as e:
+        logger.warning(f"Gender Male: {e}")
+        return False
+
+
+def select_sort_discounts(driver) -> bool:
+    """On listing page: click Sort, then select Discounts. Returns True if both steps succeeded."""
+    wait = WebDriverWait(driver, 3.5)
+    try:
+        sort_btn = wait.until(EC.element_to_be_clickable(SearchPageLocators.SORT_BUTTON))
+        sort_btn.click()
+        logger.info("Sort button tapped")
+        time.sleep(0.35)
+        wait_disc = WebDriverWait(driver, 2.0)
+        for discount_loc in [
+            SearchPageLocators.SORT_DISCOUNTS,
+            (AppiumBy.XPATH, "//*[contains(@text,'Discount') or contains(@text,'discount')]"),
+            (AppiumBy.XPATH, "//*[contains(@content-desc,'Discount') or contains(@content-desc,'discount')]"),
+        ]:
+            try:
+                el = wait_disc.until(EC.element_to_be_clickable(discount_loc))
+                if el and el.is_displayed():
+                    el.click()
+                    logger.info("Discounts selected")
+                    time.sleep(0.2)
+                    return True
+            except Exception:
+                continue
+    except Exception as e:
+        logger.warning(f"Sort/Discounts: {e}")
+    return False
+
+
+def open_first_listing_product(driver) -> bool:
+    """On listing page (after Gender/Sort): open first product. Returns True if product page opened."""
+    wait_first = WebDriverWait(driver, 3.5)
+    for loc in [
+        SearchPageLocators.FIRST_PRODUCT_GRID_ITEM,
+        SearchPageLocators.FIRST_SHOE_PRODUCT,
+        SearchPageLocators.FIRST_BY_PRICE_CLICKABLE,
+    ]:
+        try:
+            el = wait_first.until(EC.element_to_be_clickable(loc))
+            if el and el.is_displayed():
+                el.click()
+                logger.info("First product opened (element click)")
+                return True
+        except Exception:
+            continue
+    try:
+        size = driver.get_window_size()
+        screen_w, screen_h = size["width"], size["height"]
+    except Exception:
+        screen_w, screen_h = 1080, 2400
+    for y_pct in [0.82, 0.80, 0.84]:
+        y = int(screen_h * y_pct)
+        x = int(screen_w * 0.25)
+        if _tap_at(driver, x, y):
+            logger.info("First product opened (tap)")
+            return True
+    return False
 
 
 def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True) -> None:
@@ -368,8 +444,8 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
 
 def add_to_bag_select_available_size(driver) -> None:
     """On product page: click Add to bag → size pop-up opens → click available size → click DONE."""
-    wait = WebDriverWait(driver, 3)
-    time.sleep(0.2)
+    wait = WebDriverWait(driver, 5)
+    time.sleep(0.4)
 
     # Step 1: Click "Add to bag" first — this opens the "Select Size (UK Size)" pop-up
     add_clicked = False
@@ -423,11 +499,11 @@ def add_to_bag_select_available_size(driver) -> None:
         logger.warning("Add to bag button not found; skipping size pop-up flow.")
         return
 
-    time.sleep(0.25)  # Brief wait for Select Size pop-up
+    time.sleep(0.5)  # Wait for Select Size pop-up to be ready
 
     # Step 2: In the pop-up, click the first available size (try 5, then 6, 7, 8, 9, 10; only non-greyed are clickable)
     size_clicked = False
-    wait_size = WebDriverWait(driver, 2)
+    wait_size = WebDriverWait(driver, 3.5)
     for size_val in ["5", "6", "7", "8", "9", "10"]:
         try:
             # Prefer exact text so we hit the size chip (e.g. "5") not another element
@@ -468,37 +544,75 @@ def add_to_bag_select_available_size(driver) -> None:
         except Exception:
             pass
 
-    time.sleep(0.3)
+    time.sleep(0.8)  # Let size selection register before DONE appears
 
-    # Step 3: Click DONE to confirm and add to bag
+    # Step 3: Click DONE to confirm and add to bag (multiple strategies so it always clicks)
     done_clicked = False
+    # First try clickable (primary)
     try:
-        done_btn = WebDriverWait(driver, 2).until(
+        done_btn = WebDriverWait(driver, 4).until(
             EC.element_to_be_clickable(ProductPageLocators.SIZE_DONE_BUTTON)
         )
         done_btn.click()
+        done_clicked = True
         print("DONE clicked")
         logger.info("DONE clicked")
-        done_clicked = True
     except Exception:
         pass
     if not done_clicked:
-        try:
-            done_btn = driver.find_element(AppiumBy.XPATH, "//*[contains(@text,'DONE') or contains(@text,'Done')]")
-            done_btn.click()
-            print("DONE clicked (fallback)")
-            done_clicked = True
-        except Exception as e:
-            logger.warning(f"DONE button not found: {e}")
+        done_locators = [
+            (AppiumBy.XPATH, "//*[@text='DONE' or @text='Done']"),
+            (AppiumBy.XPATH, "//*[contains(@text,'DONE') or contains(@text,'Done')]"),
+            (AppiumBy.ID, "com.myntra.android:id/done_btn"),
+            (AppiumBy.XPATH, "//android.widget.Button[contains(@text,'DONE') or contains(@text,'Done')]"),
+            (AppiumBy.XPATH, "//android.widget.TextView[contains(@text,'DONE') or contains(@text,'Done')]"),
+        ]
+        wait_done = WebDriverWait(driver, 1.0)
+        for loc in done_locators:
+            try:
+                done_btn = wait_done.until(EC.visibility_of_element_located(loc))
+                if done_btn:
+                    try:
+                        done_btn.click()
+                        done_clicked = True
+                        print("DONE clicked (fallback locator)")
+                        logger.info("DONE clicked (fallback locator)")
+                        break
+                    except Exception:
+                        try:
+                            r = done_btn.rect
+                            cx = r["x"] + r["width"] // 2
+                            cy = r["y"] + r["height"] // 2
+                            if _tap_at(driver, cx, cy):
+                                done_clicked = True
+                                print("DONE tapped (element center)")
+                                logger.info("DONE tapped (element center)")
+                                break
+                        except Exception:
+                            pass
+            except Exception:
+                continue
     if not done_clicked:
-        # Fallback: tap bottom-center where DONE usually is (pink button at bottom of pop-up)
+        # Fallback: tap bottom area where DONE usually is (pink button at bottom of pop-up)
         try:
             sz = driver.get_window_size()
             w, h = sz["width"], sz["height"]
-            driver.tap([(w // 2, int(h * 0.92))])
-            print("DONE tapped (position)")
+            for y_ratio in [0.90, 0.92, 0.88, 0.85, 0.87]:
+                if _tap_at(driver, w // 2, int(h * y_ratio)):
+                    print("DONE tapped (position)")
+                    logger.info("DONE tapped (position)")
+                    done_clicked = True
+                    break
+                time.sleep(0.1)
         except Exception:
             pass
+    if not done_clicked:
+        logger.warning("DONE button may not have been clicked; continuing.")
+
+
+def return_to_home(driver, back_presses: int = 3, max_extra_back: int = 3) -> bool:
+    """Press Back to return to home screen. Used by tests. Returns True if home is visible."""
+    return _return_to_home(driver, back_presses, max_extra_back)
 
 
 def _return_to_home(driver, back_presses: int = 3, max_extra_back: int = 3) -> bool:
@@ -538,10 +652,10 @@ def _return_to_home(driver, back_presses: int = 3, max_extra_back: int = 3) -> b
     return False
 
 
-def empty_cart_and_return_home(driver) -> None:
+def remove_product_from_cart(driver) -> bool:
     """
-    On Shopping Bag page: click product-card X (not header), confirm REMOVE in popup,
-    wait until cart is empty, then return to Home screen.
+    On Shopping Bag page: click product-card X, confirm REMOVE in popup, wait until cart is empty.
+    Does NOT return to home. Returns True if item was removed and cart is empty.
     """
     wait_short = WebDriverWait(driver, 0.6)
     wait10 = WebDriverWait(driver, 4)
@@ -562,7 +676,7 @@ def empty_cart_and_return_home(driver) -> None:
             continue
     if not bag_detected:
         logger.warning("Shopping bag screen not detected")
-        return
+        return False
 
     # Step 2 — Click the product remove (X) icon: try likely locators first, then Qty/Size fallback
     remove_icon = None
@@ -608,14 +722,14 @@ def empty_cart_and_return_home(driver) -> None:
                 logger.info("Remove icon clicked (card top-right)")
             except Exception as e:
                 logger.warning(f"Remove icon not found on Shopping Bag screen: {e}")
-                return
+                return False
     else:
         try:
             remove_icon.click()
             logger.info("Remove icon clicked")
         except Exception as e:
             logger.warning(f"Failed to click remove icon: {e}")
-            return
+            return False
 
     # Step 3 — Confirmation popup (Cancel | REMOVE): click REMOVE (right button in dialog)
     time.sleep(0.25)
@@ -682,11 +796,17 @@ def empty_cart_and_return_home(driver) -> None:
 
     if cart_emptied:
         logger.info("Cart emptied successfully")
+    return cart_emptied
 
-    # Wait 2 seconds in cart before returning home
-    time.sleep(2)
 
-    # Step 5 — Return to Home screen: press Back until Home tab is visible
+def empty_cart_and_return_home(driver) -> None:
+    """
+    On Shopping Bag page: remove item(s) via remove_product_from_cart, then return to Home screen.
+    """
+    if not remove_product_from_cart(driver):
+        logger.warning("remove_product_from_cart did not empty cart; will still try to return home")
+    time.sleep(0.5)
+    # Return to Home: press Back until Home tab is visible
     def _on_home():
         for loc in [HomePageLocators.HOME_TAB, HomePageLocators.HOME_TAB_ALT]:
             try:
@@ -708,6 +828,203 @@ def empty_cart_and_return_home(driver) -> None:
         logger.info("Returned to home screen")
     else:
         logger.warning("Home screen not confirmed after emptying cart")
+
+
+def open_cart_set_quantity_place_order(driver, quantity: int = 2, skip_return_to_home: bool = False) -> bool:
+    """
+    Open cart, set quantity, click DONE, then click Place Order.
+    If skip_return_to_home is True, assume already on home (do not press Back).
+    Returns True if cart opened and Place Order was clicked.
+    """
+    if not _open_cart_and_set_quantity(driver, quantity, skip_return_to_home):
+        return False
+    time.sleep(0.35)
+    return click_place_order(driver)
+
+
+def open_cart_set_quantity_done_only(driver, quantity: int = 2, skip_return_to_home: bool = False) -> bool:
+    """
+    Open cart, set quantity to `quantity`, click DONE for quantity. Does NOT click Place Order.
+    Use when you want to stop at cart screen or then call click_place_order() separately.
+    """
+    return _open_cart_and_set_quantity(driver, quantity, skip_return_to_home)
+
+
+def _open_cart_and_set_quantity(driver, quantity: int, skip_return_to_home: bool) -> bool:
+    """Shared: open cart (tap bag), verify cart, set quantity, DONE. Returns True if cart open and qty set."""
+    if not skip_return_to_home:
+        if not _return_to_home(driver):
+            logger.warning("Could not return to home before opening cart.")
+    try:
+        sz = driver.get_window_size()
+        w, h = sz["width"], sz["height"]
+    except Exception:
+        w, h = 1080, 2400
+    bag_clicked = False
+    for x_ratio, y_ratio in [(0.92, 0.96), (0.90, 0.96), (0.94, 0.95), (0.88, 0.96)]:
+        x, y = int(w * x_ratio), int(h * y_ratio)
+        try:
+            if _tap_at(driver, x, y):
+                bag_clicked = True
+                break
+        except Exception:
+            pass
+        try:
+            driver.tap([(x, y)])
+            bag_clicked = True
+            break
+        except Exception:
+            pass
+    if not bag_clicked:
+        try:
+            bag_el = WebDriverWait(driver, 0.4).until(EC.element_to_be_clickable(HomePageLocators.BAG_ICON))
+            if bag_el:
+                bag_el.click()
+                bag_clicked = True
+        except Exception:
+            pass
+    if not bag_clicked:
+        return False
+    time.sleep(0.4)
+    cart_open = False
+    for loc in [
+        BagPageLocators.QTY_DROPDOWN,
+        BagPageLocators.BAG_ITEMS,
+        (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
+        (AppiumBy.XPATH, "//*[contains(@text,'Qty')]"),
+    ]:
+        try:
+            WebDriverWait(driver, 1.0).until(EC.visibility_of_element_located(loc))
+            cart_open = True
+            break
+        except Exception:
+            continue
+    if not cart_open:
+        logger.warning("Cart did not open after tapping bag icon.")
+        return False
+    time.sleep(0.1)
+    if quantity >= 2:
+        wait_qty = WebDriverWait(driver, 1.5)
+        for qty_loc in [
+            BagPageLocators.QTY_DROPDOWN,
+            (AppiumBy.XPATH, "//*[contains(@text,'Qty: 1') or contains(@text,'Qty : 1')]"),
+            (AppiumBy.XPATH, "//*[contains(@text,'Qty')]"),
+        ]:
+            try:
+                qty_el = wait_qty.until(EC.element_to_be_clickable(qty_loc))
+                qty_el.click()
+                time.sleep(0.1)
+                break
+            except Exception:
+                continue
+        try:
+            opt = wait_qty.until(EC.element_to_be_clickable((AppiumBy.XPATH, "//*[@text='2']")))
+            opt.click()
+        except Exception:
+            try:
+                opt = wait_qty.until(EC.element_to_be_clickable(BagPageLocators.QTY_OPTION_2))
+                opt.click()
+            except Exception:
+                pass
+        time.sleep(0.05)
+        try:
+            done_btn = WebDriverWait(driver, 2).until(
+                EC.element_to_be_clickable(ProductPageLocators.SIZE_DONE_BUTTON)
+            )
+            done_btn.click()
+        except Exception:
+            try:
+                done_btn = driver.find_element(AppiumBy.XPATH, "//*[contains(@text,'DONE') or contains(@text,'Done')]")
+                done_btn.click()
+            except Exception:
+                pass
+        time.sleep(0.25)
+    return True
+
+
+def click_place_order(driver) -> bool:
+    """
+    On cart/bag screen: click Place Order button. Call after opening cart and setting quantity.
+    Returns True if Place Order was clicked (login screen may open after).
+    """
+    place_order_clicked = False
+    try:
+        sz = driver.get_window_size()
+        w, h = sz["width"], sz["height"]
+        if _tap_at(driver, w // 2, int(h * 0.92)):
+            place_order_clicked = True
+            logger.info("Place Order tapped (bottom)")
+    except Exception:
+        pass
+    if not place_order_clicked:
+        try:
+            driver.tap([(int(driver.get_window_size()["width"] // 2), int(driver.get_window_size()["height"] * 0.92))])
+            place_order_clicked = True
+            logger.info("Place Order tapped (driver.tap)")
+        except Exception:
+            pass
+    if not place_order_clicked:
+        wait_place = WebDriverWait(driver, 1.0)
+        for checkout_loc in [
+            (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
+            (AppiumBy.ID, "com.myntra.android:id/checkout"),
+            BagPageLocators.PROCEED_TO_CHECKOUT,
+        ]:
+            try:
+                btn = wait_place.until(EC.presence_of_element_located(checkout_loc))
+                if btn and btn.is_displayed():
+                    try:
+                        btn.click()
+                        place_order_clicked = True
+                    except Exception:
+                        try:
+                            r = btn.rect
+                            if _tap_at(driver, r["x"] + r["width"] // 2, r["y"] + r["height"] // 2):
+                                place_order_clicked = True
+                        except Exception:
+                            pass
+                    if place_order_clicked:
+                        logger.info("Place Order clicked (element)")
+                        break
+            except Exception:
+                continue
+    return place_order_clicked
+
+
+def back_from_login_to_home(driver) -> bool:
+    """
+    If login screen is open (e.g. after Place Order): click X (top-right) to close, then return to home.
+    Returns True if we closed login and reached home.
+    """
+    time.sleep(0.15)
+    login_closed = False
+    wait_close = WebDriverWait(driver, 0.8)
+    for close_loc in [
+        PopupLocators.ONBOARDING_CLOSE,
+        PopupLocators.CLOSE_BUTTON,
+        PopupLocators.TOP_RIGHT_CLOSE_X,
+        PopupLocators.TOP_RIGHT_CLOSE_X_DESC,
+        (AppiumBy.XPATH, "//*[contains(@content-desc,'Close') or contains(@resource-id,'close')]"),
+    ]:
+        try:
+            close_el = wait_close.until(EC.element_to_be_clickable(close_loc))
+            close_el.click()
+            login_closed = True
+            break
+        except Exception:
+            continue
+    if not login_closed:
+        try:
+            sz = driver.get_window_size()
+            w, h = sz["width"], sz["height"]
+            driver.tap([(int(w * 0.92), int(h * 0.08))])
+            login_closed = True
+        except Exception:
+            pass
+    if login_closed:
+        time.sleep(0.1)
+        return _return_to_home(driver)
+    return False
 
 
 def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
