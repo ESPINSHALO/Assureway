@@ -19,6 +19,36 @@ Appium and Python automation framework for testing the Myntra Android app on an 
 * Android Emulator – Test execution environment
 * ADB – Android device communication
 
+## Test Execution Result
+
+All automated test cases executed successfully. Order: full suite, regression, then smoke. The screenshots below use the latest docs images from sample runs.
+
+**Note:** Some test runs may occasionally fail due to flaky tests (e.g. timing, network, or UI responsiveness). Re-running the suite usually passes.
+
+### Full suite (16 tests)
+
+```bash
+pytest tests/ -v
+```
+
+<p align="center"><img src="docs/all-tests-output.png?v=3" alt="Full suite (16 tests) terminal output" width="900"></p>
+
+### Regression tests (12 tests)
+
+```bash
+pytest tests/ -v -m regression
+```
+
+<p align="center"><img src="docs/regression-tests-output.png?v=3" alt="Regression tests (12 tests) terminal output" width="900"></p>
+
+### Smoke tests (4 tests)
+
+```bash
+pytest tests/ -v -m smoke
+```
+
+<p align="center"><img src="docs/smoke-tests-output.png?v=3" alt="Smoke tests (4 tests) terminal output" width="900"></p>
+
 ---
 
 ## Quick start
@@ -56,7 +86,7 @@ The script runs: launch → reach home → search “shoes” → Gender Male, S
 
 ## Run the test suite (pytest)
 
-Tests run in a fixed order so the flow makes sense. Each test gets a new driver session.
+Tests run in a fixed order so the flow makes sense. Each test gets a new driver session. Tests may sometimes fail due to flaky behaviour (timing or network); re-run if needed.
 
 ```bash
 # Run all tests
@@ -72,7 +102,7 @@ pytest tests/test_app_launch.py -v
 pytest tests/test_search_flow.py::test_sort_select_discounts -v
 ```
 
-**On failure:** A screenshot is saved under `reports/screenshots/` with a name like `test_name_YYYYMMDD_HHMMSS.png`. The path is printed in the terminal.
+**On failure:** A screenshot is saved under `reports/screenshots/` with a name like `test_name_YYYYMMDD_HHMMSS.png`. The path is printed in the terminal. Occasional failures can be due to flaky tests—re-running often passes.
 
 ---
 
@@ -104,7 +134,7 @@ Tests are ordered by design: app launch → home → search flow → cart and ch
 
 ## Test Execution Result
 
-All automated test cases executed successfully.
+All automated test cases executed successfully. Some runs may fail occasionally due to flaky tests; re-running the suite usually passes.
 
 Example terminal output:
 
@@ -147,6 +177,7 @@ Assureway/
 │   ├── test_cart_checkout_flow.py  # Cart, quantity, Place Order, login, remove, empty
 │   └── test_full_e2e_flow.py # Single full end-to-end test
 ├── utils/               # Logger, waits, helpers
+├── docs/                # Test output screenshots for README
 ├── reports/             # report.html, screenshots/, logs (optional)
 ├── conftest.py          # Pytest fixtures, test order, screenshot-on-failure hook
 ├── pytest.ini
