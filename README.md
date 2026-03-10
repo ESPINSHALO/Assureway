@@ -21,7 +21,7 @@ Appium and Python automation framework for testing the Myntra Android app on an 
 
 ## Test Execution Result
 
-All automated test cases executed successfully. Order: full suite, regression, then smoke. The screenshots below use the latest docs images from sample runs.
+All automated test cases executed successfully. Order: full suite, regression, then smoke. The screenshots below use the latest execution-results images from sample runs.
 
 **Note:** Some test runs may occasionally fail due to flaky tests (e.g. timing, network, or UI responsiveness). Re-running the suite usually passes.
 
@@ -31,7 +31,7 @@ All automated test cases executed successfully. Order: full suite, regression, t
 pytest tests/ -v
 ```
 
-<p align="center"><img src="docs/all-tests-output.png?v=3" alt="Full suite (16 tests) terminal output" width="900"></p>
+<p align="center"><img src="execution-results/all-tests-output.png?v=3" alt="Full suite (16 tests) terminal output" width="900"></p>
 
 ### Regression tests (12 tests)
 
@@ -39,7 +39,7 @@ pytest tests/ -v
 pytest tests/ -v -m regression
 ```
 
-<p align="center"><img src="docs/regression-tests-output.png?v=3" alt="Regression tests (12 tests) terminal output" width="900"></p>
+<p align="center"><img src="execution-results/regression-tests-output.png?v=3" alt="Regression tests (12 tests) terminal output" width="900"></p>
 
 ### Smoke tests (4 tests)
 
@@ -47,7 +47,7 @@ pytest tests/ -v -m regression
 pytest tests/ -v -m smoke
 ```
 
-<p align="center"><img src="docs/smoke-tests-output.png?v=3" alt="Smoke tests (4 tests) terminal output" width="900"></p>
+<p align="center"><img src="execution-results/smoke-tests-output.png?v=3" alt="Smoke tests (4 tests) terminal output" width="900"></p>
 
 ---
 
@@ -177,7 +177,7 @@ Assureway/
 │   ├── test_cart_checkout_flow.py  # Cart, quantity, Place Order, login, remove, empty
 │   └── test_full_e2e_flow.py # Single full end-to-end test
 ├── utils/               # Logger, waits, helpers
-├── docs/                # Test output screenshots for README
+├── execution-results/   # Execution result screenshots and outputs for README
 ├── reports/             # report.html, screenshots/, logs (optional)
 ├── conftest.py          # Pytest fixtures, test order, screenshot-on-failure hook
 ├── pytest.ini
