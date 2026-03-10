@@ -219,3 +219,40 @@ Assureway/
 - Ensure the emulator is fully booted and the Myntra app is installed before running.
 - Start the Appium server before executing the script or tests.
 - If the app UI changes, update `pages/locators.py` using Appium Inspector.
+
+---
+
+## Troubleshooting: "Instrumentation process cannot be initialized" / AppsFilter BLOCKED
+
+If tests fail with **ERROR** and logcat shows `AppsFilter: ... BLOCKED` or `io.appium.uiautomator2.server` being killed, Android is blocking Appium’s instrumentation. Try these in order:
+
+**1. Disable app visibility filter (recommended on emulator)**  
+Run once, then the emulator will reboot:
+
+```bash
+adb shell device_config put activity_manager app_visibility_enabled false && adb reboot
+```
+
+After the emulator comes back up, run the tests again.
+
+**2. Clean reinstall of Appium helper apps**  
+Uninstall the UiAutomator2 packages and let Appium reinstall them on the next run:
+
+```bash
+adb uninstall io.appium.settings
+adb uninstall io.appium.uiautomator2.server
+adb uninstall io.appium.uiautomator2.server.test
+```
+
+Then start Appium and run: `pytest tests/test_app_launch.py::test_app_launches_successfully -v`
+
+**3. Increase UiAutomator2 launch timeout**  
+If the server is slow to start, set a longer timeout (default in this project is 60s):
+
+```bash
+export U2_LAUNCH_TIMEOUT=90000
+pytest tests/ -v
+```
+
+**4. Emulator image**  
+Use a "Google APIs" or "Google Play" system image. Avoid images that enforce strict app visibility if the issue persists.
