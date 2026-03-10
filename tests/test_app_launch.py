@@ -1,10 +1,9 @@
 """Test: Verify app launches, then popup handling, then home screen."""
 import time
 import pytest
+from config.capabilities import APP_PACKAGE
 from core.driver_factory import quit_driver
 from utils.logger import logger
-
-MYNTRA_PACKAGE = "com.myntra.android"
 
 
 def _press_back_safe(driver):
@@ -22,12 +21,12 @@ def test_app_launches_successfully(driver):
     """Only check that the app opens; then close the app. No popup handling, no home."""
     time.sleep(2)
     try:
-        driver.activate_app(MYNTRA_PACKAGE)
+        driver.activate_app(APP_PACKAGE)
     except Exception:
         pass
     time.sleep(1.5)
     current = driver.current_package
-    assert current == MYNTRA_PACKAGE, f"Expected Myntra, got {current}"
+    assert current == APP_PACKAGE, f"Expected Myntra, got {current}"
     quit_driver(driver)
     logger.info("✅ App launched successfully (app opened and closed)")
 
@@ -37,7 +36,7 @@ def test_handle_onboarding_popup(driver):
     """Launch app, press Back once to dismiss the popup, then quit immediately. Does not wait for home."""
     time.sleep(2)
     try:
-        driver.activate_app(MYNTRA_PACKAGE)
+        driver.activate_app(APP_PACKAGE)
     except Exception:
         pass
     time.sleep(0.5)

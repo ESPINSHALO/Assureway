@@ -7,7 +7,10 @@ Cart & checkout flow tests (after add to bag):
 """
 import pytest
 import time
-from pages.locators import HomePageLocators
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from pages.locators import BagPageLocators, HomePageLocators, PopupLocators
 from scripts.open_myntra_home import (
     perform_search,
     select_gender_male,
@@ -107,33 +110,28 @@ def test_click_place_order_opens_login(app_launched, home_page):
     time.sleep(0.4)
     assert click_place_order(app_launched), "Failed to click Place Order"
     time.sleep(1.5)
-    # Login screen: match text or content-desc (Android), or typical login hints
-    from appium.webdriver.common.appiumby import AppiumBy
-    from pages.locators import PopupLocators
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
+    login_locators = [
+        PopupLocators.PROFILE_LOGIN_BUTTON,
+        PopupLocators.LOGIN_LOGIN_SIGNUP_TEXT,
+        PopupLocators.LOGIN_LOGIN_SIGNUP_DESC,
+        PopupLocators.LOGIN_SIGNIN_TEXT,
+        PopupLocators.LOGIN_CONTINUE_PHONE,
+        PopupLocators.LOGIN_MOBILE_HINT,
+    ]
     login_visible = False
     wait_login = WebDriverWait(app_launched, 4)
-    for loc in [
-        PopupLocators.PROFILE_LOGIN_BUTTON,
-        (AppiumBy.XPATH, "//*[contains(@text,'LOG IN') or contains(@text,'Log in') or contains(@text,'Sign up') or contains(@text,'SIGN UP')]"),
-        (AppiumBy.XPATH, "//*[contains(@content-desc,'LOG IN') or contains(@content-desc,'Log in') or contains(@content-desc,'Sign up') or contains(@content-desc,'SIGN UP')]"),
-        (AppiumBy.XPATH, "//*[contains(@text,'Login') or contains(@text,'login') or contains(@text,'Sign In')]"),
-        (AppiumBy.XPATH, "//*[contains(@text,'Continue with') or contains(@text,'Phone') or contains(@text,'Email') or contains(@text,'Use your phone')]"),
-        (AppiumBy.XPATH, "//*[contains(@text,'Enter your mobile') or contains(@text,'Mobile number')]"),
-    ]:
+    for loc in login_locators:
         try:
             wait_login.until(EC.visibility_of_element_located(loc))
             login_visible = True
             break
         except Exception:
             continue
-    # Fallback: we left the cart (Place Order was clicked) and cart screen is gone
     if not login_visible:
         try:
-            app_launched.find_element(AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]")
+            app_launched.find_element(*BagPageLocators.PLACE_ORDER_BUTTON)
         except Exception:
-            login_visible = True  # Cart gone => we navigated to login/next screen
+            login_visible = True
     assert login_visible, "Login screen did not open after Place Order"
     logger.info("✅ Place Order clicked - login screen opened")
 
@@ -172,6 +170,24 @@ def _open_cart_from_home(driver):
             return False
 
 
+def _wait_for_cart_screen_visible(driver, timeout: int = 3):
+    """Wait until shopping bag/cart screen is visible (so remove can run). Returns True if cart is visible."""
+    cart_indicators = [
+        BagPageLocators.BAG_ITEMS,
+        BagPageLocators.QTY_DROPDOWN,
+        BagPageLocators.PLACE_ORDER_BUTTON,
+        BagPageLocators.BAG_SCREEN_TITLE,
+        BagPageLocators.BAG_SCREEN_ITEMS_SELECTED,
+    ]
+    for loc in cart_indicators:
+        try:
+            WebDriverWait(driver, timeout).until(EC.visibility_of_element_located(loc))
+            return True
+        except Exception:
+            continue
+    return False
+
+
 @pytest.mark.regression
 def test_remove_product_from_cart(app_launched, home_page):
     """
@@ -188,13 +204,10 @@ def test_remove_product_from_cart(app_launched, home_page):
     back_from_login_to_home(app_launched)
     time.sleep(0.3)
     assert _open_cart_from_home(app_launched), "Could not open cart again"
-    time.sleep(0.5)
+    time.sleep(0.3)
+    assert _wait_for_cart_screen_visible(app_launched), "Cart screen did not load after opening bag"
+    time.sleep(0.1)
     assert remove_product_from_cart(app_launched), "Failed to remove product from cart"
-    # Verify empty: empty message or PLACE ORDER gone
-    from appium.webdriver.common.appiumby import AppiumBy
-    from pages.locators import BagPageLocators
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
     empty_ok = False
     try:
         WebDriverWait(app_launched, 2).until(EC.visibility_of_element_located(BagPageLocators.EMPTY_BAG_MESSAGE))
@@ -202,9 +215,7 @@ def test_remove_product_from_cart(app_launched, home_page):
     except Exception:
         try:
             WebDriverWait(app_launched, 2).until(
-                EC.invisibility_of_element_located(
-                    (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]")
-                )
+                EC.invisibility_of_element_located(BagPageLocators.PLACE_ORDER_BUTTON)
             )
             empty_ok = True
         except Exception:
@@ -228,7 +239,9 @@ def test_verify_empty_cart_and_return_home(app_launched, home_page):
     back_from_login_to_home(app_launched)
     time.sleep(0.3)
     assert _open_cart_from_home(app_launched), "Could not open cart again"
-    time.sleep(0.5)
+    time.sleep(0.3)
+    assert _wait_for_cart_screen_visible(app_launched), "Cart screen did not load after opening bag"
+    time.sleep(0.1)
     empty_cart_and_return_home(app_launched)
     time.sleep(0.5)
     assert home_page.is_home_loaded(), "Did not return to home after empty cart"

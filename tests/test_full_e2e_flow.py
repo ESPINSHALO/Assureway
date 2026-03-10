@@ -7,9 +7,9 @@ import pytest
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from config.capabilities import APP_PACKAGE
 from pages.locators import HomePageLocators
 from scripts.open_myntra_home import (
-    MYNTRA_PACKAGE,
     perform_search,
     sort_price_low_to_high_and_open_first_shoe,
     add_to_bag_select_available_size,
@@ -36,7 +36,7 @@ def test_full_e2e_flow(driver, popup_handler):
 
     # 1. Initial popup handling — ensure app has focus, wait for first screen, then Back
     try:
-        driver.activate_app(MYNTRA_PACKAGE)
+        driver.activate_app(APP_PACKAGE)
     except Exception:
         pass
     time.sleep(4)  # Ensure splash/onboarding is visible before Back (pytest can be slower)

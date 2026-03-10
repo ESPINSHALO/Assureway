@@ -1,7 +1,11 @@
 """Test: Search flow - search, Gender → Male, Sort → Discounts, open product, select size & add to bag."""
 import pytest
 import time
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 from pages import HomePage, SearchPage
+from pages.locators import ProductPageLocators, SearchPageLocators
 from scripts.open_myntra_home import (
     perform_search,
     select_gender_male,
@@ -10,6 +14,24 @@ from scripts.open_myntra_home import (
     add_to_bag_select_available_size,
 )
 from utils.logger import logger
+
+# Product page visibility – locators from pages.locators only
+_PRODUCT_PAGE_INDICATORS = [
+    ProductPageLocators.ADD_TO_BAG,
+    ProductPageLocators.ADD_TO_BAG_TEXT,
+    ProductPageLocators.ADD_TO_BAG_DESC,
+    ProductPageLocators.SIZE_BUTTON,
+    ProductPageLocators.SELECT_SIZE,
+    ProductPageLocators.ADD_TO_BAG_TEXT_LOWER,
+    ProductPageLocators.ADD_TO_BAG_DESC_LOWER,
+]
+
+_GO_TO_BAG_INDICATORS = [
+    ProductPageLocators.GO_TO_BAG,
+    ProductPageLocators.GO_TO_BAG_TEXT,
+    ProductPageLocators.GO_TO_BAG_TEXT_LOWER,
+    ProductPageLocators.GO_TO_BAG_DESC_LOWER,
+]
 
 
 @pytest.mark.regression
@@ -63,32 +85,19 @@ def test_sort_select_discounts(app_launched, home_page, search_page):
 
 def _is_product_page_visible(driver, product_page, search_page, timeout: int = 3) -> bool:
     """True if any product-detail indicator is visible, or we left the listing (flow succeeded)."""
-    from appium.webdriver.common.appiumby import AppiumBy
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    locators = [
-        product_page.locators.ADD_TO_BAG,
-        product_page.locators.ADD_TO_BAG_TEXT,
-        product_page.locators.ADD_TO_BAG_DESC,
-        product_page.locators.SIZE_BUTTON,
-        product_page.locators.SELECT_SIZE,
-        (AppiumBy.XPATH, "//*[contains(translate(@text,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'add to bag')]"),
-        (AppiumBy.XPATH, "//*[contains(translate(@content-desc,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'add to bag')]"),
-    ]
-    for loc in locators:
+    for loc in _PRODUCT_PAGE_INDICATORS:
         try:
             WebDriverWait(driver, timeout).until(EC.visibility_of_element_located(loc))
             return True
         except Exception:
             continue
-    # Flow success: we opened first product so listing (SORT/GENDER) should no longer be visible
     try:
-        WebDriverWait(driver, 1).until(EC.invisibility_of_element_located(search_page.locators.SORT_BUTTON))
+        WebDriverWait(driver, 1).until(EC.invisibility_of_element_located(SearchPageLocators.SORT_BUTTON))
         return True
     except Exception:
         pass
     try:
-        WebDriverWait(driver, 1).until(EC.invisibility_of_element_located(search_page.locators.GENDER_BUTTON))
+        WebDriverWait(driver, 1).until(EC.invisibility_of_element_located(SearchPageLocators.GENDER_BUTTON))
         return True
     except Exception:
         pass
@@ -117,34 +126,15 @@ def test_open_first_product(app_launched, home_page, search_page, product_page):
 
 def _is_go_to_bag_or_add_success(driver, product_page, timeout: int = 3) -> bool:
     """True if Go to bag visible, or size popup is gone (DONE was clicked = flow succeeded)."""
-    from appium.webdriver.common.appiumby import AppiumBy
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    locators = [
-        product_page.locators.GO_TO_BAG,
-        (AppiumBy.XPATH, "//*[contains(@text,'GO TO BAG') or contains(@text,'Go to Bag') or contains(@text,'Go to bag')]"),
-        (AppiumBy.XPATH, "//*[contains(translate(@text,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'go to bag')]"),
-        (AppiumBy.XPATH, "//*[contains(translate(@content-desc,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'go to bag')]"),
-    ]
-    for loc in locators:
+    for loc in _GO_TO_BAG_INDICATORS:
         try:
             WebDriverWait(driver, timeout).until(EC.visibility_of_element_located(loc))
             return True
         except Exception:
             continue
-    # Flow success: size was selected and DONE clicked, so "Select Size" popup should be gone
     try:
         WebDriverWait(driver, 1).until(
-            EC.invisibility_of_element_located(product_page.locators.SIZE_POPUP_TITLE)
-        )
-        return True
-    except Exception:
-        pass
-    try:
-        WebDriverWait(driver, 1).until(
-            EC.invisibility_of_element_located(
-                (AppiumBy.XPATH, "//*[contains(@text,'Select Size') or contains(@text,'UK Size')]")
-            )
+            EC.invisibility_of_element_located(ProductPageLocators.SIZE_POPUP_TITLE)
         )
         return True
     except Exception:
