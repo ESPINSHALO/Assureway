@@ -23,12 +23,12 @@ from appium.webdriver.common.appiumby import AppiumBy
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from config.capabilities import APP_PACKAGE
 from core.driver_factory import create_driver, quit_driver
 from pages.locators import HomePageLocators, SearchPageLocators, ProductPageLocators, BagPageLocators, PopupLocators
 from pages.popup_handler import PopupHandler
 from utils.logger import logger
 
-MYNTRA_PACKAGE = "com.myntra.android"
 TOP_RIGHT_TAP_SEC = 5       # Tap top-right X long enough to close first popup
 POPUP_HANDLING_SEC = 2      # Brief popup check so we go to search within ~2 sec of Back
 HOME_PAGE_WAIT_SEC = 0    # No extra wait — go to search immediately
@@ -90,7 +90,7 @@ def _close_running_screens_until_home(driver, popup_handler):
 
     while (time.time() - start) < POPUP_HANDLING_SEC:
         current = _current_package(driver)
-        if current == MYNTRA_PACKAGE:
+        if current == APP_PACKAGE:
             dismissed = popup_handler.dismiss_popup()
             if dismissed:
                 no_dismiss_count = 0
@@ -107,13 +107,13 @@ def _close_running_screens_until_home(driver, popup_handler):
             time.sleep(0.5)
         time.sleep(0.5)
 
-    return _current_package(driver) == MYNTRA_PACKAGE
+    return _current_package(driver) == APP_PACKAGE
 
 
 def _dismiss_profile_if_open(driver) -> bool:
     """If profile page is open, press Back once to return to home. Returns True if back was pressed."""
     try:
-        if driver.current_package != MYNTRA_PACKAGE:
+        if driver.current_package != APP_PACKAGE:
             return False
         profile_title = driver.find_elements(*PopupLocators.PROFILE_SCREEN_TITLE)
         profile_login = driver.find_elements(*PopupLocators.PROFILE_LOGIN_BUTTON)
@@ -139,13 +139,12 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
     # Locate search bar immediately (skip home check — we're already on home)
     search_container = None
     search_container_locators = [
+        # Primary: official search widget id
         (AppiumBy.ID, "com.myntra.android:id/search_widget_text"),
-        (AppiumBy.XPATH, "//*[@clickable='true' and .//*[contains(@text,'Jeans') or contains(@text,'Search')]]"),
-        (AppiumBy.XPATH, "//*[contains(@text,'Jeans') or contains(@text,'Search') or contains(@content-desc,'Search')]"),
+        # Fallbacks: explicit Search accessibility/text only (no broad contains that might match other elements)
         (AppiumBy.ACCESSIBILITY_ID, "Search"),
         (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().descriptionContains("Search")'),
-        (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().textContains("Jeans")'),
-        (AppiumBy.CLASS_NAME, "android.widget.EditText"),
+        (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().textContains("Search")'),
     ]
     # Allow time for home/search bar to be ready (emulator can be slower under automation)
     wait_search = WebDriverWait(driver, 2.5)
@@ -162,7 +161,7 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
     print("Search container found")
     logger.info("Search container found.")
 
-    # D. Click/tap the search container
+    # D. Click/tap the search container (only on the exact element we located)
     def _try_click_or_tap():
         try:
             search_container.click()
@@ -175,7 +174,7 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
             sz = search_container.size
             cx = loc["x"] + sz["width"] // 2
             cy = loc["y"] + sz["height"] // 2
-            driver.tap([(cx, cy)])
+            driver.execute_script("mobile: clickGesture", {"x": int(cx), "y": int(cy)})
             print(f"[DEBUG] Search bar: tapped at element center ({cx}, {cy})")
             return True
         except Exception as e2:
@@ -204,24 +203,9 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
 
     search_input = _find_search_input()
 
-    # Fallback: tap at screen position where search bar usually is (below header, center)
     if not search_input:
-        print("[DEBUG] Search screen did not open. Tapping at typical search bar position...")
-        try:
-            w, h = driver.get_window_size()["width"], driver.get_window_size()["height"]
-            for y_ratio in [0.22, 0.25, 0.28]:
-                tx, ty = w // 2, int(h * y_ratio)
-                driver.tap([(tx, ty)])
-                time.sleep(0.3)
-                search_input = _find_search_input()
-                if search_input:
-                    break
-        except Exception as e:
-            print(f"[DEBUG] Position tap failed: {e}")
-            logger.warning(f"Position tap: {e}")
-
-    if not search_input:
-        raise Exception("Search input field did not appear. Try Appium Inspector to get the exact locator for the search bar.")
+        # Fail fast with a clear error instead of tapping arbitrary coordinates.
+        raise Exception("Search input field did not appear after tapping the search bar.")
     print("Search screen opened")
     logger.info("Search screen opened.")
 
@@ -318,9 +302,13 @@ def open_first_listing_product(driver) -> bool:
     """On listing page (after Gender/Sort): open first product. Returns True if product page opened."""
     wait_first = WebDriverWait(driver, 3.5)
     for loc in [
+        SearchPageLocators.FIRST_GENDER_SHOE_TOP_RATED,
         SearchPageLocators.FIRST_PRODUCT_GRID_ITEM,
+        SearchPageLocators.FIRST_PRODUCT_GRID_ITEM_ALT,
+        SearchPageLocators.FIRST_PRODUCT_GRID_FROM_THIRD,
+        SearchPageLocators.FIRST_PRODUCT_CARD,
+        SearchPageLocators.FIRST_PRODUCT_CARD_ALT,
         SearchPageLocators.FIRST_SHOE_PRODUCT,
-        SearchPageLocators.FIRST_BY_PRICE_CLICKABLE,
     ]:
         try:
             el = wait_first.until(EC.element_to_be_clickable(loc))
@@ -330,14 +318,15 @@ def open_first_listing_product(driver) -> bool:
                 return True
         except Exception:
             continue
+    # Fallback: tap gender shoe row (y 58-68%) — below silver/REDTAPE row, above MEN/SORT/FILTER bar
     try:
         size = driver.get_window_size()
         screen_w, screen_h = size["width"], size["height"]
     except Exception:
         screen_w, screen_h = 1080, 2400
-    for y_pct in [0.82, 0.80, 0.84]:
+    for y_pct in [0.62, 0.58, 0.65, 0.60]:  # Gender shoe row (below silver/REDTAPE)
         y = int(screen_h * y_pct)
-        x = int(screen_w * 0.25)
+        x = int(screen_w * 0.25)  # Left column (Top Rated shoe)
         if _tap_at(driver, x, y):
             logger.info("First product opened (tap)")
             return True
@@ -398,12 +387,16 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
         logger.warning("Discounts option not found on sort page; continuing to first shoe.")
     time.sleep(0.15)
 
-    # Prefer element-based click so we don't trigger scroll (tap can be interpreted as scroll)
+    # Prefer element-based click — use price-based locators to avoid clicking Filter bar at bottom
     wait_first = WebDriverWait(driver, 0.8)
     for loc in [
+        SearchPageLocators.FIRST_GENDER_SHOE_TOP_RATED,
         SearchPageLocators.FIRST_PRODUCT_GRID_ITEM,
+        SearchPageLocators.FIRST_PRODUCT_GRID_ITEM_ALT,
+        SearchPageLocators.FIRST_PRODUCT_GRID_FROM_THIRD,
+        SearchPageLocators.FIRST_PRODUCT_CARD,
+        SearchPageLocators.FIRST_PRODUCT_CARD_ALT,
         SearchPageLocators.FIRST_SHOE_PRODUCT,
-        SearchPageLocators.FIRST_BY_PRICE_CLICKABLE,
     ]:
         try:
             el = wait_first.until(EC.element_to_be_clickable(loc))
@@ -415,29 +408,25 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
         except Exception:
             continue
 
-    # Fallback: use clickGesture at product area (avoids driver.tap which can trigger scroll)
+    # Fallback: tap gender shoe row (y 58-68%) — below silver/REDTAPE, above Filter bar
     try:
         size = driver.get_window_size()
         screen_w, screen_h = size["width"], size["height"]
     except Exception:
         screen_w, screen_h = 1080, 2400
-    strip_min_y = int(screen_h * 0.78)
-    strip_max_y = int(screen_h * 0.86)
-    for y_pct in [0.82, 0.80, 0.84, 0.79, 0.85]:
+    for y_pct in [0.62, 0.58, 0.65, 0.60]:  # Gender shoe row (below silver/REDTAPE)
         y = int(screen_h * y_pct)
-        if y < strip_min_y or y > strip_max_y:
-            continue
-        x = int(screen_w * 0.25)
+        x = int(screen_w * 0.25)  # Left column (Top Rated)
         if _tap_at(driver, x, y):
-            print("First shoe opened (clickGesture above gender)")
-            logger.info("First shoe opened (clickGesture above gender)")
+            print("First shoe opened (tap product grid)")
+            logger.info("First shoe opened (tap product grid)")
             return
     for x_pct in [0.22, 0.28]:
         x = int(screen_w * x_pct)
-        y = int(screen_h * 0.82)
+        y = int(screen_h * 0.62)  # Gender shoe row
         if _tap_at(driver, x, y):
-            print("First shoe opened (clickGesture)")
-            logger.info("First shoe opened (clickGesture)")
+            print("First shoe opened (tap)")
+            logger.info("First shoe opened (tap)")
             return
     logger.warning("Could not open first shoe.")
 
@@ -657,18 +646,21 @@ def remove_product_from_cart(driver) -> bool:
     On Shopping Bag page: click product-card X, confirm REMOVE in popup, wait until cart is empty.
     Does NOT return to home. Returns True if item was removed and cart is empty.
     """
-    wait_short = WebDriverWait(driver, 0.6)
-    wait10 = WebDriverWait(driver, 4)
+    # Wait for cart to be visible (cart may take a moment to load after opening from home)
+    wait_bag = WebDriverWait(driver, 1.5)
+    wait_short = WebDriverWait(driver, 0.8)
+    wait10 = WebDriverWait(driver, 2.5)
 
     # Step 1 — Detect Shopping Bag screen (any of: product card, Qty, PLACE ORDER)
     bag_detected = False
     for loc in [
         BagPageLocators.BAG_ITEMS,
         BagPageLocators.QTY_DROPDOWN,
+        BagPageLocators.PLACE_ORDER_BUTTON,
         (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]"),
     ]:
         try:
-            wait_short.until(EC.visibility_of_element_located(loc))
+            wait_bag.until(EC.visibility_of_element_located(loc))
             bag_detected = True
             logger.info("Shopping bag detected")
             break
@@ -677,6 +669,7 @@ def remove_product_from_cart(driver) -> bool:
     if not bag_detected:
         logger.warning("Shopping bag screen not detected")
         return False
+    time.sleep(0.1)
 
     # Step 2 — Click the product remove (X) icon: try likely locators first, then Qty/Size fallback
     remove_icon = None
@@ -732,11 +725,11 @@ def remove_product_from_cart(driver) -> bool:
             return False
 
     # Step 3 — Confirmation popup (Cancel | REMOVE): click REMOVE (right button in dialog)
-    time.sleep(0.25)
+    time.sleep(0.15)
     w, h = driver.get_window_size()["width"], driver.get_window_size()["height"]
     remove_clicked = False
     # 1) Try to find REMOVE element and tap its center
-    wait_popup = WebDriverWait(driver, 1.5)
+    wait_popup = WebDriverWait(driver, 1.0)
     for loc in [
         (AppiumBy.ID, "android:id/button2"),
         BagPageLocators.POPUP_REMOVE_BUTTON2,
@@ -805,7 +798,7 @@ def empty_cart_and_return_home(driver) -> None:
     """
     if not remove_product_from_cart(driver):
         logger.warning("remove_product_from_cart did not empty cart; will still try to return home")
-    time.sleep(0.5)
+    time.sleep(0.2)
     # Return to Home: press Back until Home tab is visible
     def _on_home():
         for loc in [HomePageLocators.HOME_TAB, HomePageLocators.HOME_TAB_ALT]:
@@ -1279,6 +1272,14 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
             pass
     if cart_opened:
         time.sleep(0.2)
+        # Wait for cart/shopping bag screen to be visible before remove (avoids returning to home prematurely)
+        for loc in [BagPageLocators.BAG_ITEMS, BagPageLocators.QTY_DROPDOWN, BagPageLocators.PLACE_ORDER_BUTTON]:
+            try:
+                WebDriverWait(driver, 2).until(EC.visibility_of_element_located(loc))
+                break
+            except Exception:
+                continue
+        time.sleep(0.1)
         empty_cart_and_return_home(driver)
     else:
         logger.warning("Could not reopen cart to empty it")
