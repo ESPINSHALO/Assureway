@@ -1,9 +1,9 @@
 """Search page interactions for Myntra app."""
 import time
+
 from appium.webdriver.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from appium.webdriver.common.appiumby import AppiumBy
 
 from pages.base_page import BasePage
 from pages.locators import SearchPageLocators, HomePageLocators
@@ -66,7 +66,7 @@ class SearchPage(BasePage):
                 self.locators.SEARCH_INPUT,
                 self.locators.SEARCH_INPUT_EDIT,
                 self.locators.SEARCH_INPUT_PLACEHOLDER_JEANS,
-                (AppiumBy.XPATH, "//android.widget.EditText"),
+                self.locators.SEARCH_INPUT_EDIT_XPATH,
             ]:
                 try:
                     search_input = WebDriverWait(self.driver, 8).until(

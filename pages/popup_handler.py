@@ -1,10 +1,13 @@
 """Handles popups and dialogs (onboarding, login prompts)."""
+import time
+
 from appium.webdriver.webdriver import WebDriver
+
+from config.capabilities import APP_PACKAGE
 from pages.base_page import BasePage
 from pages.locators import PopupLocators, HomePageLocators
-from utils.waits import element_exists, safe_click
 from utils.logger import logger
-import time
+from utils.waits import element_exists, safe_click
 
 
 class PopupHandler(BasePage):
@@ -20,7 +23,7 @@ class PopupHandler(BasePage):
         """
         # FIRST: Profile page – press Back immediately (don't waste time on top-right X)
         try:
-            if self.driver.current_package == "com.myntra.android":
+            if self.driver.current_package == APP_PACKAGE:
                 on_profile = (
                     element_exists(self.driver, self.locators.PROFILE_SCREEN_TITLE, timeout=0.5)
                     or element_exists(self.driver, self.locators.PROFILE_LOGIN_BUTTON, timeout=0.5)
@@ -35,7 +38,7 @@ class PopupHandler(BasePage):
 
         # If already on HOME – do NOT tap top-right (that would open Profile)
         try:
-            if self.driver.current_package == "com.myntra.android":
+            if self.driver.current_package == APP_PACKAGE:
                 home_locators = (
                     HomePageLocators.HOME_INDICATOR,
                     HomePageLocators.HOME_TAB,
@@ -51,7 +54,7 @@ class PopupHandler(BasePage):
 
         # Onboarding only: top-right X (not when on home)
         try:
-            if self.driver.current_package == "com.myntra.android":
+            if self.driver.current_package == APP_PACKAGE:
                 if self.tap_top_right_close():
                     time.sleep(0.5)
                     logger.info("Tapped top-right close (onboarding)")

@@ -31,6 +31,9 @@ class HomePageLocators:
     # Profile/Account
     PROFILE_ICON = (AppiumBy.ID, "com.myntra.android:id/profile")
 
+    # Search bar – accessibility (for tap_search fallbacks)
+    SEARCH_ACCESSIBILITY_ID = (AppiumBy.ACCESSIBILITY_ID, "Search")
+
 
 class SearchPageLocators:
     """Search screen locators."""
@@ -38,6 +41,7 @@ class SearchPageLocators:
     SEARCH_INPUT_EDIT = (AppiumBy.CLASS_NAME, "android.widget.EditText")
     # XPath by placeholder text (Jeans, Earrings, Search for, etc.)
     SEARCH_INPUT_PLACEHOLDER_JEANS = (AppiumBy.XPATH, "//android.widget.EditText[contains(@text, 'Jeans') or contains(@text, 'Earrings') or contains(@text, 'Search') or contains(@hint, 'Jeans') or contains(@content-desc, 'Search')]")
+    SEARCH_INPUT_EDIT_XPATH = (AppiumBy.XPATH, "//android.widget.EditText")
     SEARCH_RESULTS_LIST = (AppiumBy.ID, "com.myntra.android:id/search_results_recycler")
     SEARCH_RESULTS_XPATH = (AppiumBy.XPATH, "//*[contains(@resource-id, 'search') and contains(@resource-id, 'result')]")
     
@@ -51,14 +55,15 @@ class SearchPageLocators:
     SORT_PRICE_HIGH_TO_LOW = (AppiumBy.XPATH, "//*[contains(@text,'Price - high to low') or contains(@text,'Price - High to Low') or contains(@text,'high to low')]")
     SORT_WHATS_NEW = (AppiumBy.XPATH, "//*[contains(@text,\"What's New\") or contains(@text,'Whats New') or contains(@text,'WHAT\'S NEW')]")
     SORT_DISCOUNTS = (AppiumBy.XPATH, "//*[contains(@text,'Discount') or contains(@text,'discount') or contains(@text,'DISCOUNT')]")
-    # First shoe/product on the listing (after sort) — multiple strategies
-    FIRST_SHOE_PRODUCT = (AppiumBy.XPATH, "(//androidx.recyclerview.widget.RecyclerView//android.view.ViewGroup[.//*[contains(@text,'₹') or contains(@resource-id,'product')]])[1]")
-    FIRST_PRODUCT_CARD = (AppiumBy.XPATH, "//androidx.recyclerview.widget.RecyclerView//android.view.ViewGroup[2]")
-    # Second RecyclerView is often the product grid (first = category chips)
-    FIRST_PRODUCT_GRID_ITEM = (AppiumBy.XPATH, "(//androidx.recyclerview.widget.RecyclerView)[2]//android.view.ViewGroup[1]")
-    # Any view with price then ancestor ViewGroup (clickable card)
-    FIRST_BY_PRICE_PARENT = (AppiumBy.XPATH, "//*[contains(@text,'₹')]/ancestor::android.view.ViewGroup[2]")
-    FIRST_BY_PRICE_CLICKABLE = (AppiumBy.XPATH, "//*[contains(@text,'₹')]/ancestor::*[@clickable='true'][1]")
+    # First GENDER shoe (row 2: model wearing shoes) — skip row 1: [silver shoes | REDTAPE ad]
+    # 2-col grid: [1]=silver, [2]=REDTAPE ad, [3]=Top Rated gender shoe, [4]=other gender shoe
+    FIRST_GENDER_SHOE_TOP_RATED = (AppiumBy.XPATH, "//*[contains(@text,'Top Rated')]/ancestor::*[@clickable='true'][1]")
+    FIRST_PRODUCT_GRID_ITEM = (AppiumBy.XPATH, "(//androidx.recyclerview.widget.RecyclerView)[2]//android.view.ViewGroup[.//android.widget.ImageView][3]")
+    FIRST_PRODUCT_GRID_ITEM_ALT = (AppiumBy.XPATH, "(//androidx.recyclerview.widget.RecyclerView)[2]//android.view.ViewGroup[.//android.widget.ImageView][4]")
+    FIRST_PRODUCT_GRID_FROM_THIRD = (AppiumBy.XPATH, "(//androidx.recyclerview.widget.RecyclerView)[3]//android.view.ViewGroup[.//android.widget.ImageView][1]")
+    FIRST_PRODUCT_CARD = (AppiumBy.XPATH, "(//androidx.recyclerview.widget.RecyclerView)[2]//android.view.ViewGroup[3]")
+    FIRST_PRODUCT_CARD_ALT = (AppiumBy.XPATH, "(//androidx.recyclerview.widget.RecyclerView)[2]//android.view.ViewGroup[4]")
+    FIRST_SHOE_PRODUCT = (AppiumBy.XPATH, "(//*[contains(@resource-id,'product') or contains(@resource-id,'plp')])[2]")
 
 
 class ProductPageLocators:
@@ -81,7 +86,12 @@ class ProductPageLocators:
 
     # Go to bag
     GO_TO_BAG = (AppiumBy.ID, "com.myntra.android:id/go_to_bag")
-    # GO_TO_BAG = (AppiumBy.XPATH, "//*[contains(@text, 'GO TO BAG')]")
+    GO_TO_BAG_TEXT = (AppiumBy.XPATH, "//*[contains(@text,'GO TO BAG') or contains(@text,'Go to Bag') or contains(@text,'Go to bag')]")
+    GO_TO_BAG_TEXT_LOWER = (AppiumBy.XPATH, "//*[contains(translate(@text,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'go to bag')]")
+    GO_TO_BAG_DESC_LOWER = (AppiumBy.XPATH, "//*[contains(translate(@content-desc,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'go to bag')]")
+    # Add to bag – case-insensitive fallbacks
+    ADD_TO_BAG_TEXT_LOWER = (AppiumBy.XPATH, "//*[contains(translate(@text,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'add to bag')]")
+    ADD_TO_BAG_DESC_LOWER = (AppiumBy.XPATH, "//*[contains(translate(@content-desc,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'add to bag')]")
 
 
 class BagPageLocators:
@@ -125,6 +135,7 @@ class BagPageLocators:
     QUANTITY_PLUS_TEXT = (AppiumBy.XPATH, "//*[@text='+' or contains(@text,'+')]")
     # Proceed to checkout
     PROCEED_TO_CHECKOUT = (AppiumBy.XPATH, "//*[contains(@text,'Proceed') or contains(@text,'PROCEED') or contains(@text,'Checkout') or contains(@text,'CHECKOUT') or contains(@text,'Place Order')]")
+    PLACE_ORDER_BUTTON = (AppiumBy.XPATH, "//*[contains(@text,'PLACE ORDER') or contains(@text,'Place Order')]")
     PROCEED_BUTTON = (AppiumBy.ID, "com.myntra.android:id/checkout")  # if exists
     # Shopping Bag screen detection (any of these = we're on bag page)
     BAG_SCREEN_TITLE = (AppiumBy.XPATH, "//*[contains(@text,'SHOPPING BAG') or contains(@text,'Shopping Bag')]")
@@ -166,6 +177,12 @@ class PopupLocators:
     # Profile screen (opens ~2 sec after home) – back arrow at top-left to close
     PROFILE_SCREEN_TITLE = (AppiumBy.XPATH, "//*[@text='Profile' or contains(@text, 'Profile')]")
     PROFILE_LOGIN_BUTTON = (AppiumBy.XPATH, "//*[contains(@text, 'LOG IN') or contains(@text, 'SIGN UP')]")
+    # Login screen indicators (after Place Order)
+    LOGIN_LOGIN_SIGNUP_TEXT = (AppiumBy.XPATH, "//*[contains(@text,'LOG IN') or contains(@text,'Log in') or contains(@text,'Sign up') or contains(@text,'SIGN UP')]")
+    LOGIN_LOGIN_SIGNUP_DESC = (AppiumBy.XPATH, "//*[contains(@content-desc,'LOG IN') or contains(@content-desc,'Log in') or contains(@content-desc,'Sign up') or contains(@content-desc,'SIGN UP')]")
+    LOGIN_SIGNIN_TEXT = (AppiumBy.XPATH, "//*[contains(@text,'Login') or contains(@text,'login') or contains(@text,'Sign In')]")
+    LOGIN_CONTINUE_PHONE = (AppiumBy.XPATH, "//*[contains(@text,'Continue with') or contains(@text,'Phone') or contains(@text,'Email') or contains(@text,'Use your phone')]")
+    LOGIN_MOBILE_HINT = (AppiumBy.XPATH, "//*[contains(@text,'Enter your mobile') or contains(@text,'Mobile number')]")
     PROFILE_BACK_ARROW = (AppiumBy.ACCESSIBILITY_ID, "Back")
     PROFILE_BACK_NAVIGATE_UP = (AppiumBy.ACCESSIBILITY_ID, "Navigate up")
     PROFILE_BACK_XPATH = (AppiumBy.XPATH, "//*[contains(@content-desc, 'Back') or contains(@content-desc, 'Navigate')]")

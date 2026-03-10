@@ -1,5 +1,4 @@
 """Home page interactions for Myntra app."""
-from appium.webdriver.common.appiumby import AppiumBy
 from appium.webdriver.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -17,17 +16,22 @@ class HomePage(BasePage):
         self.locators = HomePageLocators()
 
     def tap_search(self) -> bool:
-        """Tap the search bar quickly: short timeouts, multiple locators, click or tap at center."""
+        """
+        Tap the search bar with strict, locator-only targeting.
+        Uses only the search widget resource-id / accessibility-id.
+        Does not tap any coordinates unless they belong to a located element.
+        """
         logger.info("Tapping search icon")
-        # Same locators as script perform_search; short timeout so we don't stay long on home
+
+        # Only use stable, specific locators for the search bar (no broad XPaths).
         search_locators = [
-            (AppiumBy.ID, "com.myntra.android:id/search_widget_text"),
             self.locators.SEARCH_CONTAINER,
             self.locators.SEARCH_ICON,
-            (AppiumBy.XPATH, "//*[contains(@text,'Jeans') or contains(@text,'Search') or contains(@content-desc,'Search')]"),
-            (AppiumBy.ACCESSIBILITY_ID, "Search"),
+            self.locators.SEARCH_BAR_PLACEHOLDER,
+            self.locators.SEARCH_ACCESSIBILITY_ID,
         ]
         wait = WebDriverWait(self.driver, 0.7)
+
         for loc in search_locators:
             try:
                 el = wait.until(EC.visibility_of_element_located(loc))
@@ -38,20 +42,25 @@ class HomePage(BasePage):
                     logger.info("Search bar clicked")
                     return True
                 except Exception:
-                    pass
-                try:
-                    loc_ = el.location
-                    sz = el.size
-                    cx = loc_["x"] + sz["width"] // 2
-                    cy = loc_["y"] + sz["height"] // 2
-                    self.driver.tap([(cx, cy)])
-                    logger.info("Search bar tapped at center")
-                    return True
-                except Exception:
-                    pass
+                    try:
+                        # Use a precise tap at the element center as a fallback, based on element bounds.
+                        loc_ = el.location
+                        sz = el.size
+                        cx = loc_["x"] + sz["width"] // 2
+                        cy = loc_["y"] + sz["height"] // 2
+                        self.driver.execute_script(
+                            "mobile: clickGesture", {"x": int(cx), "y": int(cy)}
+                        )
+                        logger.info("Search bar tapped at center")
+                        return True
+                    except Exception:
+                        continue
             except Exception:
                 continue
-        return self.tap(self.locators.SEARCH_ICON)
+
+        # Do not guess coordinates outside a located element – fail fast instead of mis-tapping.
+        logger.warning("Search bar element not found by id/accessibility; tap_search returning False")
+        return False
 
     def tap_bag(self) -> bool:
         """Tap the bag icon to open shopping bag."""
