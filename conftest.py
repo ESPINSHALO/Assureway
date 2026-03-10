@@ -5,10 +5,12 @@ Test order (by design): app launch → popups → home → tap search → search
 Each test gets a fresh app session (driver per test). This keeps tests independent.
 For one continuous flow without restarts, run: pytest tests/test_full_e2e_flow.py -v
 
-On test failure, a screenshot is saved to reports/screenshots/.
+On test failure, a screenshot is saved to reports/screenshots/ (mandatory).
+Uses driver.save_screenshot(); if that fails (e.g. instrumentation crashed), falls back to ADB screencap.
 """
 import os
 import re
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -18,6 +20,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from appium.webdriver.webdriver import WebDriver
+from config.capabilities import APP_PACKAGE
 from core.driver_factory import create_driver, quit_driver
 from pages import HomePage, SearchPage, ProductPage, BagPage, PopupHandler
 from pages.locators import HomePageLocators
@@ -103,30 +106,58 @@ def _get_driver_from_item(item):
     return None
 
 
+def _screenshot_via_adb(filepath: str) -> bool:
+    """Capture device screenshot via ADB when driver is dead. Returns True if saved."""
+    try:
+        result = subprocess.run(
+            ["adb", "exec-out", "screencap", "-p"],
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+        if result.returncode == 0 and result.stdout:
+            with open(filepath, "wb") as f:
+                f.write(result.stdout)
+            return True
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as e:
+        logger.warning("ADB screencap fallback failed: %s", e)
+    return False
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """On test failure, save a screenshot to reports/screenshots/ (for all tests that use driver or app_launched)."""
+    """On test failure, save a screenshot to reports/screenshots/ (mandatory).
+    Tries driver.save_screenshot(); if instrumentation is dead, falls back to ADB screencap."""
     outcome = yield
     report = outcome.get_result()
     if report.when != "call" or report.passed:
         return
+    os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
+    safe_name = re.sub(r"[^\w\-.]", "_", item.name)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{safe_name}_{timestamp}.png"
+    filepath = os.path.join(SCREENSHOTS_DIR, filename)
+    filepath = os.path.abspath(filepath)
+
     driver = _get_driver_from_item(item)
-    if driver is None:
-        logger.warning("No WebDriver found for failed test %s - screenshot skipped", item.name)
-        return
-    try:
-        os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
-        safe_name = re.sub(r"[^\w\-.]", "_", item.name)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{safe_name}_{timestamp}.png"
-        filepath = os.path.join(SCREENSHOTS_DIR, filename)
-        filepath = os.path.abspath(filepath)
-        driver.save_screenshot(filepath)
-        logger.info("Screenshot saved on failure: %s", filepath)
-        sys.stderr.write(f"[pytest] Screenshot saved: {filepath}\n")
-    except Exception as e:
-        logger.warning("Could not save failure screenshot: %s", e)
-        sys.stderr.write(f"[pytest] Screenshot failed: {e}\n")
+    saved = False
+    if driver is not None:
+        try:
+            driver.save_screenshot(filepath)
+            saved = True
+            logger.info("Screenshot saved on failure: %s", filepath)
+            sys.stderr.write(f"[pytest] Screenshot saved: {filepath}\n")
+        except Exception as e:
+            logger.warning("Driver screenshot failed: %s", str(e).split("\n")[0][:100])
+
+    if not saved:
+        if _screenshot_via_adb(filepath):
+            saved = True
+            logger.info("Screenshot saved on failure (ADB fallback): %s", filepath)
+            sys.stderr.write(f"[pytest] Screenshot saved (ADB): {filepath}\n")
+        else:
+            logger.warning("No WebDriver for test %s and ADB fallback failed - no screenshot", item.name)
+            sys.stderr.write(f"[pytest] Screenshot unavailable (driver missing or ADB failed)\n")
 
 
 @pytest.fixture(scope="function")
@@ -170,9 +201,6 @@ def popup_handler(driver: WebDriver) -> PopupHandler:
     return PopupHandler(driver)
 
 
-MYNTRA_PACKAGE = "com.myntra.android"
-
-
 def _press_back_safe(driver):
     """Press Back once. Never raises — use for startup popup handling."""
     try:
@@ -211,7 +239,7 @@ def app_launched(driver: WebDriver, popup_handler: PopupHandler):
     """
     time.sleep(2.5)
     try:
-        driver.activate_app(MYNTRA_PACKAGE)
+        driver.activate_app(APP_PACKAGE)
     except Exception:
         pass
     time.sleep(0.5)
