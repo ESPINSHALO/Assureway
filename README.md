@@ -192,6 +192,7 @@ Assureway/
 - **App package and activity** – In `config/capabilities.py`. To see the current activity:  
   `adb shell dumpsys window | grep -E 'mCurrentFocus'`
 - **Locators** – In `pages/locators.py`. Update after inspecting the app in Appium Inspector (search bar, bag icon, product card, REMOVE button, etc.).
+- **Post-quit delay** – After each test the framework waits 3 seconds before the next test starts (so the next Appium session can connect). Override with `POST_QUIT_DELAY=0` to disable or `POST_QUIT_DELAY=5` to increase.
 
 ---
 
@@ -256,3 +257,16 @@ pytest tests/ -v
 
 **4. Emulator image**  
 Use a "Google APIs" or "Google Play" system image. Avoid images that enforce strict app visibility if the issue persists.
+
+---
+
+## AI Assistance
+
+AI-assisted development tools were used during the development of this project to improve productivity and accelerate certain development tasks.
+
+**Tools used:**
+- **Cursor AI** – used for code suggestions, refactoring assistance, and limited code generation during framework development.
+
+The automation framework architecture, Page Object Model design, test scenarios, and execution flows were designed and validated manually. AI tools were used only as a development assistant to support coding efficiency.
+
+This approach aligns with modern software development practices where AI-assisted tools help improve developer productivity while maintaining full control over design and implementation decisions.

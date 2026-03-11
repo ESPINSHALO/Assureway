@@ -16,14 +16,11 @@ import time
 from datetime import datetime
 
 import pytest
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from appium.webdriver.webdriver import WebDriver
 from config.capabilities import APP_PACKAGE
 from core.driver_factory import create_driver, quit_driver
 from pages import HomePage, SearchPage, ProductPage, BagPage, PopupHandler
-from pages.locators import HomePageLocators
 from utils.logger import logger
 
 # Folder for failure screenshots (inside reports so all test artifacts are in one place)
@@ -160,15 +157,23 @@ def pytest_runtest_makereport(item, call):
             sys.stderr.write(f"[pytest] Screenshot unavailable (driver missing or ADB failed)\n")
 
 
+# Delay after quitting driver so the next test's session can start cleanly (avoids ERROR on 2nd test).
+POST_QUIT_DELAY_SEC = float(os.getenv("POST_QUIT_DELAY", "3"))
+
+
 @pytest.fixture(scope="function")
 def driver() -> WebDriver:
     """
     Create Appium driver for each test.
     Ensures fresh app state per test.
+    After teardown, waits POST_QUIT_DELAY_SEC so the next session can start (reduces instrumentation errors).
     """
     drv = create_driver()
     yield drv
     quit_driver(drv)
+    if POST_QUIT_DELAY_SEC > 0:
+        logger.info("Waiting %.1fs after quit for device to release session...", POST_QUIT_DELAY_SEC)
+        time.sleep(POST_QUIT_DELAY_SEC)
 
 
 @pytest.fixture(scope="function")
@@ -214,20 +219,8 @@ def _press_back_safe(driver):
 
 def _wait_for_home(driver, timeout_per_loc: int = 2):
     """Wait until home screen is visible (search bar or Home tab). Returns True if found."""
-    locators = [
-        HomePageLocators.SEARCH_CONTAINER,
-        HomePageLocators.SEARCH_CONTAINER_XPATH,
-        HomePageLocators.SEARCH_BAR_PLACEHOLDER,
-        HomePageLocators.HOME_TAB,
-        HomePageLocators.HOME_TAB_ALT,
-    ]
-    for loc in locators:
-        try:
-            WebDriverWait(driver, timeout_per_loc).until(EC.visibility_of_element_located(loc))
-            return True
-        except Exception:
-            continue
-    return False
+    total_timeout = timeout_per_loc * 5
+    return HomePage(driver).wait_until_home_visible(timeout=total_timeout)
 
 
 @pytest.fixture(scope="function")
