@@ -18,7 +18,9 @@ def test_home_screen_loads(app_launched):
 @pytest.mark.smoke
 def test_tap_search_icon(app_launched, home_page):
     """Verify search icon is tappable and opens search."""
-    time.sleep(0.5)
+    # Ensure home (and search bar) is ready before tapping — same readiness as other tests that use search
+    assert home_page.is_home_loaded(timeout=6), "Home not loaded before tap search"
+    time.sleep(0.4)
     result = home_page.tap_search()
     assert result, "Failed to tap search icon"
     logger.info("✅ Search icon tap successful")

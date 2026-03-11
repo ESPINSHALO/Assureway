@@ -1,11 +1,8 @@
 """Test: Search flow - search, Gender → Male, Sort → Discounts, open product, select size & add to bag."""
 import pytest
 import time
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from pages import HomePage, SearchPage
-from pages.locators import ProductPageLocators, SearchPageLocators
 from scripts.open_myntra_home import (
     perform_search,
     select_gender_male,
@@ -14,24 +11,6 @@ from scripts.open_myntra_home import (
     add_to_bag_select_available_size,
 )
 from utils.logger import logger
-
-# Product page visibility – locators from pages.locators only
-_PRODUCT_PAGE_INDICATORS = [
-    ProductPageLocators.ADD_TO_BAG,
-    ProductPageLocators.ADD_TO_BAG_TEXT,
-    ProductPageLocators.ADD_TO_BAG_DESC,
-    ProductPageLocators.SIZE_BUTTON,
-    ProductPageLocators.SELECT_SIZE,
-    ProductPageLocators.ADD_TO_BAG_TEXT_LOWER,
-    ProductPageLocators.ADD_TO_BAG_DESC_LOWER,
-]
-
-_GO_TO_BAG_INDICATORS = [
-    ProductPageLocators.GO_TO_BAG,
-    ProductPageLocators.GO_TO_BAG_TEXT,
-    ProductPageLocators.GO_TO_BAG_TEXT_LOWER,
-    ProductPageLocators.GO_TO_BAG_DESC_LOWER,
-]
 
 
 @pytest.mark.regression
@@ -44,12 +23,9 @@ def test_search_for_product(app_launched, home_page, search_page):
     except Exception as e:
         raise AssertionError(f"Search failed - cannot validate results: {e}") from e
     time.sleep(2)
-    # Listing page has SORT and GENDER; has_results() may not match listing layout
-    listing_visible = (
-        search_page.is_element_present(search_page.locators.SORT_BUTTON, timeout=5)
-        or search_page.is_element_present(search_page.locators.GENDER_BUTTON, timeout=5)
+    assert search_page.is_listing_visible(timeout=5), (
+        "Search listing did not display (SORT/GENDER not found)"
     )
-    assert listing_visible, "Search listing did not display (SORT/GENDER not found)"
     logger.info("✅ Search flow completed - listing displayed")
 
 
@@ -76,32 +52,11 @@ def test_sort_select_discounts(app_launched, home_page, search_page):
         perform_search(app_launched, "shoes")
     except Exception as e:
         raise AssertionError(f"Search failed - cannot test Sort: {e}") from e
-    time.sleep(2)  # Let listing load (SORT/GENDER) before interacting
+    time.sleep(2)
     assert select_gender_male(app_launched), "Failed to select Gender Male first"
-    time.sleep(0.5)  # Let Gender selection apply before opening Sort
+    time.sleep(0.5)
     assert select_sort_discounts(app_launched), "Failed to click Sort and select Discounts"
     logger.info("✅ Sort → Discounts selected")
-
-
-def _is_product_page_visible(driver, product_page, search_page, timeout: int = 3) -> bool:
-    """True if any product-detail indicator is visible, or we left the listing (flow succeeded)."""
-    for loc in _PRODUCT_PAGE_INDICATORS:
-        try:
-            WebDriverWait(driver, timeout).until(EC.visibility_of_element_located(loc))
-            return True
-        except Exception:
-            continue
-    try:
-        WebDriverWait(driver, 1).until(EC.invisibility_of_element_located(SearchPageLocators.SORT_BUTTON))
-        return True
-    except Exception:
-        pass
-    try:
-        WebDriverWait(driver, 1).until(EC.invisibility_of_element_located(SearchPageLocators.GENDER_BUTTON))
-        return True
-    except Exception:
-        pass
-    return False
 
 
 @pytest.mark.regression
@@ -119,27 +74,11 @@ def test_open_first_product(app_launched, home_page, search_page, product_page):
     assert select_sort_discounts(app_launched), "Failed to select Sort Discounts"
     assert open_first_listing_product(app_launched), "Failed to open first product"
     time.sleep(2.5)
-    assert _is_product_page_visible(app_launched, product_page, search_page, timeout=4), \
+    product_visible = product_page.is_product_page_visible(timeout=4) or search_page.is_listing_gone(timeout=1)
+    assert product_visible, (
         "Product details page did not load (Add to bag / Size not found or listing still visible)"
+    )
     logger.info("✅ First product opened - product details page loaded")
-
-
-def _is_go_to_bag_or_add_success(driver, product_page, timeout: int = 3) -> bool:
-    """True if Go to bag visible, or size popup is gone (DONE was clicked = flow succeeded)."""
-    for loc in _GO_TO_BAG_INDICATORS:
-        try:
-            WebDriverWait(driver, timeout).until(EC.visibility_of_element_located(loc))
-            return True
-        except Exception:
-            continue
-    try:
-        WebDriverWait(driver, 1).until(
-            EC.invisibility_of_element_located(ProductPageLocators.SIZE_POPUP_TITLE)
-        )
-        return True
-    except Exception:
-        pass
-    return False
 
 
 @pytest.mark.regression
@@ -159,6 +98,7 @@ def test_select_size_and_add_to_bag(app_launched, home_page, search_page, produc
     time.sleep(2)
     add_to_bag_select_available_size(app_launched)
     time.sleep(2.5)
-    assert _is_go_to_bag_or_add_success(app_launched, product_page, timeout=6), \
+    assert product_page.is_go_to_bag_or_add_success(timeout=6), (
         "Add to bag did not complete (Go to bag not found and size popup still visible)"
+    )
     logger.info("✅ Selected size and added to bag - Go to bag visible or DONE confirmed")

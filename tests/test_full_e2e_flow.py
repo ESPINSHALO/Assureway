@@ -4,11 +4,9 @@ return home → open cart → increase quantity → place order → back from lo
 """
 import time
 import pytest
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from config.capabilities import APP_PACKAGE
-from pages.locators import HomePageLocators
+from pages import HomePage
 from scripts.open_myntra_home import (
     perform_search,
     sort_price_low_to_high_and_open_first_shoe,
@@ -39,46 +37,25 @@ def test_full_e2e_flow(driver, popup_handler):
         driver.activate_app(APP_PACKAGE)
     except Exception:
         pass
-    time.sleep(4)  # Ensure splash/onboarding is visible before Back (pytest can be slower)
+    time.sleep(4)
     try:
-        driver.back()  # Prefer Appium back(); often more reliable than press_keycode(4) in tests
+        driver.back()
     except Exception:
         try:
-            driver.press_keycode(4)  # KEYCODE_BACK fallback
+            driver.press_keycode(4)
         except Exception:
             pass
     time.sleep(0.5)
-    # Wait for home (search bar or Home tab); avoid repeated popup handling that taps top-right (Profile icon)
-    wait = WebDriverWait(driver, 10)
-    home_locators = [
-        HomePageLocators.SEARCH_CONTAINER,
-        HomePageLocators.SEARCH_CONTAINER_XPATH,
-        HomePageLocators.SEARCH_BAR_PLACEHOLDER,
-        HomePageLocators.HOME_TAB,
-        HomePageLocators.HOME_TAB_ALT,
-    ]
-    on_home = False
-    for loc in home_locators:
-        try:
-            wait.until(EC.visibility_of_element_located(loc))
-            on_home = True
-            break
-        except Exception:
-            continue
+
+    home_page = HomePage(driver)
+    on_home = home_page.wait_until_home_visible(timeout=10)
     if not on_home:
-        # If we landed on Profile, dismiss once (Back) then wait for home again
         try:
             popup_handler.dismiss_popup()
             time.sleep(0.5)
         except Exception:
             pass
-        for loc in home_locators:
-            try:
-                WebDriverWait(driver, 6).until(EC.visibility_of_element_located(loc))
-                on_home = True
-                break
-            except Exception:
-                continue
+        on_home = home_page.wait_until_home_visible(timeout=6)
     assert on_home, "Expected home screen (search bar or Home tab) before starting search flow"
 
     # 2. Search bar finding and search list
@@ -96,14 +73,5 @@ def test_full_e2e_flow(driver, popup_handler):
     open_cart_increase_quantity_and_checkout(driver, quantity=2)
 
     # 9. Assert we are back on home
-    wait = WebDriverWait(driver, 8)
-    on_home = False
-    for loc in [HomePageLocators.HOME_TAB, HomePageLocators.HOME_TAB_ALT]:
-        try:
-            wait.until(EC.visibility_of_element_located(loc))
-            on_home = True
-            break
-        except Exception:
-            continue
-    assert on_home, "Expected to be on home screen after full E2E flow"
+    assert home_page.is_home_loaded(timeout=8), "Expected to be on home screen after full E2E flow"
     logger.info("Full E2E flow completed; returned to home screen")
