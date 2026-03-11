@@ -12,7 +12,8 @@ __pycache__/
 htmlcov/
 *.html
 !reports/*.html
-reports/screenshots/
+!reports/screenshots/
+!reports/screenshots/*
 .idea/
 .vscode/
 *.apk
