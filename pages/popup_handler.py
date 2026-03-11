@@ -2,6 +2,8 @@
 import time
 
 from appium.webdriver.webdriver import WebDriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 from config.capabilities import APP_PACKAGE
 from pages.base_page import BasePage
@@ -91,6 +93,26 @@ class PopupHandler(BasePage):
                     logger.info(f"Dismissed using {locator[0]}")
                     time.sleep(0.5)
                     return True
+        return False
+
+    def is_login_screen_visible(self, timeout: int = 4) -> bool:
+        """True if login/signup screen is visible (after Place Order)."""
+        login_locs = [
+            self.locators.PROFILE_LOGIN_BUTTON,
+            self.locators.LOGIN_LOGIN_SIGNUP_TEXT,
+            self.locators.LOGIN_LOGIN_SIGNUP_DESC,
+            self.locators.LOGIN_SIGNIN_TEXT,
+            self.locators.LOGIN_CONTINUE_PHONE,
+            self.locators.LOGIN_MOBILE_HINT,
+        ]
+        for loc in login_locs:
+            try:
+                WebDriverWait(self.driver, timeout).until(
+                    EC.visibility_of_element_located(loc)
+                )
+                return True
+            except Exception:
+                continue
         return False
 
     def handle_initial_popups(self, max_attempts: int = 5) -> None:

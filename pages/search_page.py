@@ -137,3 +137,28 @@ class SearchPage(BasePage):
     def has_results(self) -> bool:
         """Check if search returned results."""
         return self.is_element_present(self.locators.FIRST_PRODUCT, timeout=10)
+
+    def is_listing_visible(self, timeout: int = 5) -> bool:
+        """True if listing page is shown (SORT or GENDER button visible)."""
+        return (
+            self.is_element_present(self.locators.SORT_BUTTON, timeout=timeout)
+            or self.is_element_present(self.locators.GENDER_BUTTON, timeout=timeout)
+        )
+
+    def is_listing_gone(self, timeout: int = 1) -> bool:
+        """True if listing left (SORT or GENDER no longer visible)."""
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.invisibility_of_element_located(self.locators.SORT_BUTTON)
+            )
+            return True
+        except Exception:
+            pass
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.invisibility_of_element_located(self.locators.GENDER_BUTTON)
+            )
+            return True
+        except Exception:
+            pass
+        return False

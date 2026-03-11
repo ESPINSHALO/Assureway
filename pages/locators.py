@@ -26,7 +26,8 @@ class HomePageLocators:
     
     # Bag icon (bottom navigation)
     BAG_ICON = (AppiumBy.ID, "com.myntra.android:id/cart_count")
-    # BAG_ICON = (AppiumBy.ACCESSIBILITY_ID, "Bag")
+    BAG_ICON_ACCESSIBILITY = (AppiumBy.ACCESSIBILITY_ID, "Bag")
+    BAG_ICON_XPATH = (AppiumBy.XPATH, "//*[contains(@content-desc,'Bag') or contains(@content-desc,'Cart')]")
     
     # Profile/Account
     PROFILE_ICON = (AppiumBy.ID, "com.myntra.android:id/profile")
