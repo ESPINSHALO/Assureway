@@ -25,6 +25,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from config.capabilities import APP_PACKAGE
 from core.driver_factory import create_driver, quit_driver
+from pages.home_page import HomePage
 from pages.locators import HomePageLocators, SearchPageLocators, ProductPageLocators, BagPageLocators, PopupLocators
 from pages.popup_handler import PopupHandler
 from utils.logger import logger
@@ -130,59 +131,21 @@ def _dismiss_profile_if_open(driver) -> bool:
 
 def perform_search(driver, query: str, timeout: int = 5) -> None:
     """
-    Pure Appium search. No ADB. Uses Myntra resource-ids first, then fallbacks.
+    Pure Appium search. No ADB. Uses HomePage.tap_search() so all tests share the same robust search-bar click.
     Raises if any required element is not found.
     """
     # If profile page interrupted, go back once
     _dismiss_profile_if_open(driver)
 
-    # Locate search bar immediately (skip home check — we're already on home)
-    search_container = None
-    search_container_locators = [
-        # Primary: official search widget id
-        (AppiumBy.ID, "com.myntra.android:id/search_widget_text"),
-        # Fallbacks: explicit Search accessibility/text only (no broad contains that might match other elements)
-        (AppiumBy.ACCESSIBILITY_ID, "Search"),
-        (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().descriptionContains("Search")'),
-        (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().textContains("Search")'),
-    ]
-    # Allow time for home/search bar to be ready (emulator can be slower under automation)
-    wait_search = WebDriverWait(driver, 2.5)
-    for by, value in search_container_locators:
-        try:
-            el = wait_search.until(EC.visibility_of_element_located((by, value)))
-            if el and el.is_displayed():
-                search_container = el
-                break
-        except Exception:
-            continue
-    if not search_container:
-        raise Exception("Search container not found on home")
-    print("Search container found")
-    logger.info("Search container found.")
-
-    # D. Click/tap the search container (only on the exact element we located)
-    def _try_click_or_tap():
-        try:
-            search_container.click()
-            print("[DEBUG] Search bar: element.click() used")
-            return True
-        except Exception as e:
-            print(f"[DEBUG] element.click() failed: {e}")
-        try:
-            loc = search_container.location
-            sz = search_container.size
-            cx = loc["x"] + sz["width"] // 2
-            cy = loc["y"] + sz["height"] // 2
-            driver.execute_script("mobile: clickGesture", {"x": int(cx), "y": int(cy)})
-            print(f"[DEBUG] Search bar: tapped at element center ({cx}, {cy})")
-            return True
-        except Exception as e2:
-            print(f"[DEBUG] Tap at center failed: {e2}")
-        return False
-
-    _try_click_or_tap()
-    time.sleep(0.1)
+    # Single code path: use same search-bar click as test_tap_search_icon (locators, Y-band, 2s polling, retry)
+    home = HomePage(driver)
+    search_tapped = home.tap_search()
+    if not search_tapped:
+        time.sleep(0.3)
+        search_tapped = home.tap_search()
+    if not search_tapped:
+        raise Exception("Search bar could not be tapped (tap_search failed twice)")
+    time.sleep(0.2)
 
     # E. Wait for search screen (EditText).
     def _find_search_input():
@@ -324,9 +287,10 @@ def open_first_listing_product(driver) -> bool:
         screen_w, screen_h = size["width"], size["height"]
     except Exception:
         screen_w, screen_h = 1080, 2400
-    for y_pct in [0.62, 0.58, 0.65, 0.60]:  # Gender shoe row (below silver/REDTAPE)
+    # Fallback: tap shoe row just above MEN/SORT/FILTER bar (below promo/top area, above bottom bar)
+    for y_pct in [0.68, 0.64, 0.72, 0.60]:
         y = int(screen_h * y_pct)
-        x = int(screen_w * 0.25)  # Left column (Top Rated shoe)
+        x = int(screen_w * 0.25)  # Left column shoe image
         if _tap_at(driver, x, y):
             logger.info("First product opened (tap)")
             return True
@@ -387,48 +351,12 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
         logger.warning("Discounts option not found on sort page; continuing to first shoe.")
     time.sleep(0.15)
 
-    # Prefer element-based click — use price-based locators to avoid clicking Filter bar at bottom
-    wait_first = WebDriverWait(driver, 0.8)
-    for loc in [
-        SearchPageLocators.FIRST_GENDER_SHOE_TOP_RATED,
-        SearchPageLocators.FIRST_PRODUCT_GRID_ITEM,
-        SearchPageLocators.FIRST_PRODUCT_GRID_ITEM_ALT,
-        SearchPageLocators.FIRST_PRODUCT_GRID_FROM_THIRD,
-        SearchPageLocators.FIRST_PRODUCT_CARD,
-        SearchPageLocators.FIRST_PRODUCT_CARD_ALT,
-        SearchPageLocators.FIRST_SHOE_PRODUCT,
-    ]:
-        try:
-            el = wait_first.until(EC.element_to_be_clickable(loc))
-            if el and el.is_displayed():
-                el.click()
-                print("First shoe opened (element click)")
-                logger.info("First shoe opened (element click)")
-                return
-        except Exception:
-            continue
-
-    # Fallback: tap gender shoe row (y 58-68%) — below silver/REDTAPE, above Filter bar
-    try:
-        size = driver.get_window_size()
-        screen_w, screen_h = size["width"], size["height"]
-    except Exception:
-        screen_w, screen_h = 1080, 2400
-    for y_pct in [0.62, 0.58, 0.65, 0.60]:  # Gender shoe row (below silver/REDTAPE)
-        y = int(screen_h * y_pct)
-        x = int(screen_w * 0.25)  # Left column (Top Rated)
-        if _tap_at(driver, x, y):
-            print("First shoe opened (tap product grid)")
-            logger.info("First shoe opened (tap product grid)")
-            return
-    for x_pct in [0.22, 0.28]:
-        x = int(screen_w * x_pct)
-        y = int(screen_h * 0.62)  # Gender shoe row
-        if _tap_at(driver, x, y):
-            print("First shoe opened (tap)")
-            logger.info("First shoe opened (tap)")
-            return
-    logger.warning("Could not open first shoe.")
+    # Use the same first-product logic as test_search_flow (avoids clicking banner; targets shoe row)
+    if open_first_listing_product(driver):
+        print("First shoe opened (open_first_listing_product)")
+        logger.info("First shoe opened (open_first_listing_product)")
+    else:
+        logger.warning("Could not open first shoe.")
 
 
 def add_to_bag_select_available_size(driver) -> None:
