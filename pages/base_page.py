@@ -1,4 +1,10 @@
-"""Base page class for page object pattern."""
+"""
+Base page class for the Page Object Model.
+
+Purpose: Shared behavior and helpers for all screen-specific page objects.
+Role: Centralizes tap, find, scroll, and back actions used across Home, Search, Product, Bag, Popup.
+Architecture: All page classes in this package inherit from BasePage.
+"""
 from typing import Tuple
 from appium.webdriver.webdriver import WebDriver
 from appium.webdriver.common.appiumby import AppiumBy
@@ -7,25 +13,30 @@ from utils.logger import logger
 
 
 class BasePage:
-    """Base class for all page objects."""
+    """
+    Base class for all Myntra page objects.
+
+    Provides common actions (tap, find, scroll, back) and coordinate-based fallbacks
+    for screens where locators are unreliable (e.g. profile back, onboarding close).
+    """
 
     def __init__(self, driver: WebDriver) -> None:
         self.driver = driver
 
     def tap(self, locator: Tuple[str, str], timeout: int = 15) -> bool:
-        """Tap/click on element."""
+        """Perform a click on the element identified by the given locator."""
         return safe_click(self.driver, locator, timeout)
 
     def find_element(self, locator: Tuple[str, str], timeout: int = 15):
-        """Find and return element."""
+        """Wait for and return the first matching element."""
         return wait_for_element(self.driver, locator, timeout)
 
     def is_element_present(self, locator: Tuple[str, str], timeout: int = 5) -> bool:
-        """Check if element is present."""
+        """Return True if the element is present within the given timeout."""
         return element_exists(self.driver, locator, timeout)
 
     def scroll_down(self, duration_ms: int = 500) -> None:
-        """Scroll down the screen."""
+        """Scroll the screen downward to reveal content below the fold."""
         size = self.driver.get_window_size()
         start_x = size["width"] // 2
         start_y = int(size["height"] * 0.8)
@@ -34,7 +45,7 @@ class BasePage:
         logger.debug("Scrolled down")
 
     def scroll_up(self, duration_ms: int = 500) -> None:
-        """Scroll up the screen."""
+        """Scroll the screen upward."""
         size = self.driver.get_window_size()
         start_x = size["width"] // 2
         start_y = int(size["height"] * 0.2)
@@ -43,24 +54,24 @@ class BasePage:
         logger.debug("Scrolled up")
 
     def go_back(self) -> None:
-        """Press device back button."""
+        """Send the device back key to navigate back or dismiss overlays."""
         self.driver.back()
         logger.info("Pressed back button")
 
     def tap_coordinates(self, x: int, y: int) -> None:
-        """Tap at screen coordinates (e.g. for elements without reliable locators)."""
+        """Tap at (x, y); used when elements lack stable resource-id or content-desc."""
         self.driver.tap([(x, y)])
         logger.debug(f"Tapped at ({x}, {y})")
 
     def tap_top_left_back(self) -> bool:
         """
-        Tap the top-left back arrow (←) on Profile screen. Tries multiple positions
-        to handle different screen sizes; back icon is next to "Profile" title.
+        Tap the top-left back arrow on the Profile screen to return to home.
+
+        Uses a fixed offset below the status bar to support different resolutions.
         """
         try:
             size = self.driver.get_window_size()
             w, h = size["width"], size["height"]
-            # Back arrow: far left, below status bar (~24–32px). Try several positions.
             x, y = 45, int(h * 0.08)
             self.tap_coordinates(x, y)
             return True
@@ -70,14 +81,11 @@ class BasePage:
 
     def tap_top_right_close(self) -> bool:
         """
-        Tap the top-right area where the X close button usually is (onboarding screens).
-        Use when the close icon has no content-desc or resource-id.
-        Tries two positions to handle different resolutions.
+        Tap the top-right area to dismiss onboarding or overlay close (X) when no locator exists.
         """
         try:
             size = self.driver.get_window_size()
             w, h = size["width"], size["height"]
-            # X in circle: ~50-80px from right, ~80-120px from top (below status bar)
             x, y = int(w * 0.92), int(h * 0.08)
             self.tap_coordinates(x, y)
             return True

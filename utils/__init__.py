@@ -1,4 +1,4 @@
-"""Utility modules."""
+"""Utility exports: logger and explicit wait helpers (wait_for_element, safe_click, etc.)."""
 from utils.logger import logger, setup_logger
 from utils.waits import (
     wait_for_element,

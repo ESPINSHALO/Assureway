@@ -1,4 +1,10 @@
-"""Test: Verify app launches, then popup handling, then home screen."""
+"""
+Tests for app launch and initial popup handling.
+
+Purpose: Validate that the Myntra app starts and that a single Back key dismisses the first overlay.
+Role: First tests in the suite; no home wait or search flow; driver is quit inside the test.
+Architecture: Uses driver fixture; imports APP_PACKAGE from config (no hardcoded package).
+"""
 import time
 import pytest
 from config.capabilities import APP_PACKAGE
@@ -7,6 +13,7 @@ from utils.logger import logger
 
 
 def _press_back_safe(driver):
+    """Send the device back key once; never raises."""
     try:
         driver.back()
     except Exception:
@@ -18,7 +25,7 @@ def _press_back_safe(driver):
 
 @pytest.mark.smoke
 def test_app_launches_successfully(driver):
-    """Only check that the app opens; then close the app. No popup handling, no home."""
+    """Verify that the app launches and the current package is Myntra; then quit the driver."""
     time.sleep(2)
     try:
         driver.activate_app(APP_PACKAGE)
@@ -33,14 +40,14 @@ def test_app_launches_successfully(driver):
 
 @pytest.mark.smoke
 def test_handle_onboarding_popup(driver):
-    """Launch app, press Back once to dismiss the popup, then quit immediately. Does not wait for home."""
+    """Verify that the app launches and one Back key dismisses the initial popup; then quit without waiting for home."""
     time.sleep(2)
     try:
         driver.activate_app(APP_PACKAGE)
     except Exception:
         pass
     time.sleep(0.5)
-    _press_back_safe(driver)  # One Back to dismiss popup
+    _press_back_safe(driver)
     time.sleep(0.2)
-    quit_driver(driver)  # Close app right away; do not wait for home
+    quit_driver(driver)
     logger.info("✅ Popup handling completed (Back clicked, app quit)")

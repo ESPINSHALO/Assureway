@@ -1,12 +1,12 @@
 """
-Pytest configuration and fixtures for Myntra automation.
+Pytest configuration, fixtures, and hooks for the Myntra automation suite.
 
-Test order (by design): app launch → popups → home → tap search → search page → ...
-Each test gets a fresh app session (driver per test). This keeps tests independent.
-For one continuous flow without restarts, run: pytest tests/test_full_e2e_flow.py -v
+Purpose: Defines test order, driver and app_launched fixtures, and screenshot-on-failure behavior.
+Role: Ensures each test gets a fresh driver; app_launched brings app to home; failure screenshot is mandatory.
+Architecture: conftest is loaded by pytest; hooks run for every test; fixtures feed into test_*.py files.
 
-On test failure, a screenshot is saved to reports/screenshots/ (mandatory).
-Uses driver.save_screenshot(); if that fails (e.g. instrumentation crashed), falls back to ADB screencap.
+Test order: app launch → popups → home → search flow → cart/checkout → full E2E.
+Screenshot on failure: driver.save_screenshot to reports/screenshots/; ADB fallback when driver is dead.
 """
 import os
 import re
@@ -23,10 +23,7 @@ from core.driver_factory import create_driver, quit_driver
 from pages import HomePage, SearchPage, ProductPage, BagPage, PopupHandler
 from utils.logger import logger
 
-# Folder for failure screenshots (inside reports so all test artifacts are in one place)
 SCREENSHOTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports", "screenshots")
-
-# Run order: launch → home → search flow → cart/checkout → full E2E (navigation/add_to_bag/bag_ops removed as redundant)
 TEST_FILE_ORDER = [
     "test_app_launch.py",       # 1. App launches, popups handled
     "test_home_screen.py",      # 2. Reach home, tap search icon
@@ -34,8 +31,6 @@ TEST_FILE_ORDER = [
     "test_cart_checkout_flow.py",  # 4. Navigate home → open cart → qty 2 → Place Order → back from login → remove → empty → home
     "test_full_e2e_flow.py",    # 5. Full flow end-to-end
 ]
-
-# Order of tests *within* each file (so flow is correct; pytest would sort by name otherwise)
 TEST_ORDER_IN_FILE = {
     "test_search_flow.py": [
         "test_search_for_product",       # 1. Search first
@@ -64,7 +59,7 @@ TEST_ORDER_IN_FILE = {
 
 
 def pytest_collection_modifyitems(session, config, items):
-    """Reorder tests: by file (TEST_FILE_ORDER), then by explicit order within file (TEST_ORDER_IN_FILE)."""
+    """Reorder collected tests by file (TEST_FILE_ORDER) and by test name within each file (TEST_ORDER_IN_FILE)."""
     file_order_map = {name: i for i, name in enumerate(TEST_FILE_ORDER)}
 
     def key(item):
@@ -82,9 +77,8 @@ def pytest_collection_modifyitems(session, config, items):
 
 
 def _get_driver_from_item(item):
-    """Get WebDriver from test item (driver or app_launched fixture). Returns None if not found."""
+    """Resolve the WebDriver for the given test item (from app_launched or driver fixture)."""
     driver = None
-    # 1) Request fixture values (cached; does not re-run fixtures)
     request = getattr(item, "_request", None)
     if request is not None:
         for fixture_name in ("app_launched", "driver"):
@@ -94,7 +88,6 @@ def _get_driver_from_item(item):
                     return val
             except Exception:
                 continue
-    # 2) Fallback: scan funcargs for a WebDriver instance
     funcargs = getattr(item, "funcargs", None)
     if isinstance(funcargs, dict):
         for val in funcargs.values():
@@ -104,7 +97,7 @@ def _get_driver_from_item(item):
 
 
 def _screenshot_via_adb(filepath: str) -> bool:
-    """Capture device screenshot via ADB when driver is dead. Returns True if saved."""
+    """Capture a device screenshot via ADB when the driver session is dead; returns True if saved."""
     try:
         result = subprocess.run(
             ["adb", "exec-out", "screencap", "-p"],
@@ -123,8 +116,12 @@ def _screenshot_via_adb(filepath: str) -> bool:
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """On test failure, save a screenshot to reports/screenshots/ (mandatory).
-    Tries driver.save_screenshot(); if instrumentation is dead, falls back to ADB screencap."""
+    """
+    On test failure, save a screenshot to reports/screenshots/ (mandatory deliverable).
+
+    Uses driver.save_screenshot when the session is alive; falls back to ADB screencap
+    when the instrumentation process has crashed so evidence is still captured.
+    """
     outcome = yield
     report = outcome.get_result()
     if report.when != "call" or report.passed:
@@ -157,16 +154,15 @@ def pytest_runtest_makereport(item, call):
             sys.stderr.write(f"[pytest] Screenshot unavailable (driver missing or ADB failed)\n")
 
 
-# Delay after quitting driver so the next test's session can start cleanly (avoids ERROR on 2nd test).
 POST_QUIT_DELAY_SEC = float(os.getenv("POST_QUIT_DELAY", "3"))
 
 
 @pytest.fixture(scope="function")
 def driver() -> WebDriver:
     """
-    Create Appium driver for each test.
-    Ensures fresh app state per test.
-    After teardown, waits POST_QUIT_DELAY_SEC so the next session can start (reduces instrumentation errors).
+    Create a new Appium driver for each test and quit it after the test.
+
+    After teardown, waits POST_QUIT_DELAY_SEC so the next test's session can start cleanly.
     """
     drv = create_driver()
     yield drv
@@ -178,36 +174,36 @@ def driver() -> WebDriver:
 
 @pytest.fixture(scope="function")
 def home_page(driver: WebDriver) -> HomePage:
-    """Home page object with driver."""
+    """Provide a HomePage instance bound to the current driver."""
     return HomePage(driver)
 
 
 @pytest.fixture(scope="function")
 def search_page(driver: WebDriver) -> SearchPage:
-    """Search page object."""
+    """Provide a SearchPage instance bound to the current driver."""
     return SearchPage(driver)
 
 
 @pytest.fixture(scope="function")
 def product_page(driver: WebDriver) -> ProductPage:
-    """Product page object."""
+    """Provide a ProductPage instance bound to the current driver."""
     return ProductPage(driver)
 
 
 @pytest.fixture(scope="function")
 def bag_page(driver: WebDriver) -> BagPage:
-    """Bag page object."""
+    """Provide a BagPage instance bound to the current driver."""
     return BagPage(driver)
 
 
 @pytest.fixture(scope="function")
 def popup_handler(driver: WebDriver) -> PopupHandler:
-    """Popup handler."""
+    """Provide a PopupHandler instance bound to the current driver."""
     return PopupHandler(driver)
 
 
 def _press_back_safe(driver):
-    """Press Back once. Never raises — use for startup popup handling."""
+    """Send the device back key once; never raises (used for startup popup handling)."""
     try:
         driver.back()
     except Exception:
@@ -218,7 +214,7 @@ def _press_back_safe(driver):
 
 
 def _wait_for_home(driver, timeout_per_loc: int = 2):
-    """Wait until home screen is visible (search bar or Home tab). Returns True if found."""
+    """Wait until the home screen is visible (search bar or Home tab); returns True when found."""
     total_timeout = timeout_per_loc * 5
     return HomePage(driver).wait_until_home_visible(timeout=total_timeout)
 
@@ -226,9 +222,9 @@ def _wait_for_home(driver, timeout_per_loc: int = 2):
 @pytest.fixture(scope="function")
 def app_launched(driver: WebDriver, popup_handler: PopupHandler):
     """
-    Fixture that launches app, handles initial popups, and waits for home screen.
-    Use when test needs app to be ready on home screen (search bar visible).
-    Startup: activate app → wait for first screen → Back once (safe) → popups → wait for home.
+    Bring the app to the home screen: activate app, Back once, dismiss popups, wait for home.
+
+    Use when a test assumes the app is already on home (e.g. search or cart tests).
     """
     time.sleep(2.5)
     try:

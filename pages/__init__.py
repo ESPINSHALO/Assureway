@@ -1,4 +1,4 @@
-"""Page objects for Myntra app."""
+"""Page object exports for the Myntra app (Home, Search, Product, Bag, PopupHandler)."""
 from pages.home_page import HomePage
 from pages.search_page import SearchPage
 from pages.product_page import ProductPage

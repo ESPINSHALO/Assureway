@@ -1,4 +1,10 @@
-"""Test: Search flow - search, Gender → Male, Sort → Discounts, open product, select size & add to bag."""
+"""
+Tests for the search flow: search, filters (Gender, Sort), open product, add to bag.
+
+Purpose: Validate search, listing filters, first product open, and add-to-bag with size selection.
+Role: Uses app_launched and script helpers (perform_search, select_gender_male, etc.); asserts via page objects.
+Architecture: No locators in tests; visibility checks use search_page and product_page methods.
+"""
 import pytest
 import time
 
@@ -15,9 +21,7 @@ from utils.logger import logger
 
 @pytest.mark.regression
 def test_search_for_product(app_launched, home_page, search_page):
-    """
-    1. Search: tap search bar, type 'shoes', validate listing page (SORT/GENDER visible).
-    """
+    """Verify that a user can search for a product and the listing page (SORT/GENDER visible) is displayed."""
     try:
         perform_search(app_launched, "shoes")
     except Exception as e:
@@ -31,9 +35,7 @@ def test_search_for_product(app_launched, home_page, search_page):
 
 @pytest.mark.regression
 def test_gender_select_male(app_launched, home_page, search_page):
-    """
-    2. On listing: click Gender, select Male.
-    """
+    """Verify that on the listing page the user can open Gender and select Male."""
     try:
         perform_search(app_launched, "shoes")
     except Exception as e:
@@ -45,9 +47,7 @@ def test_gender_select_male(app_launched, home_page, search_page):
 
 @pytest.mark.regression
 def test_sort_select_discounts(app_launched, home_page, search_page):
-    """
-    3. On listing: click Sort, select Discounts.
-    """
+    """Verify that on the listing page the user can open Sort and select Discounts."""
     try:
         perform_search(app_launched, "shoes")
     except Exception as e:
@@ -61,10 +61,7 @@ def test_sort_select_discounts(app_launched, home_page, search_page):
 
 @pytest.mark.regression
 def test_open_first_product(app_launched, home_page, search_page, product_page):
-    """
-    4. On listing (after Gender + Sort): open first product, verify product details page.
-    Order: search → Gender Male → Sort Discounts → open first product.
-    """
+    """Verify that from the listing (after Gender and Sort) the first product opens and the product details page loads."""
     try:
         perform_search(app_launched, "shoes")
     except Exception as e:
@@ -83,10 +80,7 @@ def test_open_first_product(app_launched, home_page, search_page, product_page):
 
 @pytest.mark.regression
 def test_select_size_and_add_to_bag(app_launched, home_page, search_page, product_page):
-    """
-    5. On product page: select available shoe size, click Add to bag, confirm (Go to bag visible or popup closed).
-    Order: search → Gender → Sort → open first product → Add to bag → select size → DONE.
-    """
+    """Verify that on the product page the user can select a size, add to bag, and see Go to bag or DONE confirmation."""
     try:
         perform_search(app_launched, "shoes")
     except Exception as e:

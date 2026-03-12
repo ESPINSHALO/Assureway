@@ -1,6 +1,10 @@
 """
-Full E2E test: popup handling → search → gender/sort/discounts → add to bag (size) →
-return home → open cart → increase quantity → place order → back from login → cart → remove → home.
+Single end-to-end test covering the full user journey in one driver session.
+
+Purpose: Validate the complete flow from popup handling through search, filters, add to bag,
+  cart, Place Order, back from login, remove item, and return to home.
+Role: One test, one session; no per-step test isolation; used for full regression or smoke.
+Architecture: Uses driver and popup_handler fixtures; script helpers for flows; HomePage for assertions.
 """
 import time
 import pytest
@@ -19,16 +23,8 @@ from utils.logger import logger
 @pytest.mark.regression
 def test_full_e2e_flow(driver, popup_handler):
     """
-    Complete flow:
-    1. Initial popup handling (Back once to reach home)
-    2. Search bar finding and search list (type shoes)
-    3. Gender, sorting, Discounts section
-    4. Click first product, Add to bag, select size, add to bag successfully
-    5. Return to home
-    6. Open cart, increase quantity, click Place Order
-    7. Back from login page to home page
-    8. Click cart again, perform remove operation
-    9. Return back to home
+    Run the full user journey: popups → search → filters → add to bag → cart → Place Order →
+    back from login → open cart → remove item → return to home. Asserts home at the end.
     """
     start_time = time.time()
 

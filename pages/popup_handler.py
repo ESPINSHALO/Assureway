@@ -1,4 +1,10 @@
-"""Handles popups and dialogs (onboarding, login prompts)."""
+"""
+Page Object for dismissible popups and overlays (onboarding, login, profile).
+
+Purpose: Dismiss onboarding, permission, profile, and login screens so tests reach home or cart.
+Role: Used by app_launched fixture and tests that need to close login after Place Order.
+Architecture: Inherits BasePage; uses PopupLocators and HomePageLocators for detection.
+"""
 import time
 
 from appium.webdriver.webdriver import WebDriver
@@ -13,7 +19,12 @@ from utils.waits import element_exists, safe_click
 
 
 class PopupHandler(BasePage):
-    """Handles dismissible popups."""
+    """
+    Dismissible overlays: profile back, onboarding close, permissions, login screen detection.
+
+    Provides dismiss_popup (single attempt), handle_initial_popups (repeated on launch),
+    and is_login_screen_visible for post–Place Order checks.
+    """
 
     def __init__(self, driver: WebDriver) -> None:
         super().__init__(driver)
@@ -21,9 +32,9 @@ class PopupHandler(BasePage):
 
     def dismiss_popup(self) -> bool:
         """
-        Try to dismiss popups. Profile Back first (quick), then onboarding X.
+        Dismiss one overlay: profile (Back), then onboarding (top-right X or close locators).
+        Returns True if something was dismissed; avoids tapping when already on home.
         """
-        # FIRST: Profile page – press Back immediately (don't waste time on top-right X)
         try:
             if self.driver.current_package == APP_PACKAGE:
                 on_profile = (
@@ -37,8 +48,6 @@ class PopupHandler(BasePage):
                     return True
         except Exception as e:
             logger.debug(f"Profile check: {e}")
-
-        # If already on HOME – do NOT tap top-right (that would open Profile)
         try:
             if self.driver.current_package == APP_PACKAGE:
                 home_locators = (
@@ -53,8 +62,6 @@ class PopupHandler(BasePage):
                         return False
         except Exception:
             pass
-
-        # Onboarding only: top-right X (not when on home)
         try:
             if self.driver.current_package == APP_PACKAGE:
                 if self.tap_top_right_close():
@@ -63,15 +70,12 @@ class PopupHandler(BasePage):
                     return True
         except Exception as e:
             logger.debug(f"Top-right tap: {e}")
-
         locators_to_try = [
-            # Onboarding X by locator (if element has content-desc/resource-id)
             self.locators.TOP_RIGHT_CLOSE_X,
             self.locators.TOP_RIGHT_CLOSE_X_DESC,
             self.locators.TOP_RIGHT_CLOSE_X_ICON,
             self.locators.ONBOARDING_CLOSE,
             self.locators.CLOSE_BUTTON,
-            # Profile screen – back arrow to close and return to home
             self.locators.PROFILE_BACK_ARROW,
             self.locators.PROFILE_BACK_NAVIGATE_UP,
             self.locators.PROFILE_BACK_XPATH,
@@ -96,7 +100,7 @@ class PopupHandler(BasePage):
         return False
 
     def is_login_screen_visible(self, timeout: int = 4) -> bool:
-        """True if login/signup screen is visible (after Place Order)."""
+        """Return True if the login/signup screen is visible (e.g. after Place Order)."""
         login_locs = [
             self.locators.PROFILE_LOGIN_BUTTON,
             self.locators.LOGIN_LOGIN_SIGNUP_TEXT,
@@ -116,9 +120,7 @@ class PopupHandler(BasePage):
         return False
 
     def handle_initial_popups(self, max_attempts: int = 5) -> None:
-        """
-        Repeatedly try to dismiss popups that may appear on app launch.
-        """
+        """Repeatedly attempt to dismiss popups that appear on app launch until none remain."""
         for _ in range(max_attempts):
             if not self.dismiss_popup():
                 break

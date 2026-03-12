@@ -1,4 +1,10 @@
-"""Home page interactions for Myntra app."""
+"""
+Page Object for the Myntra home screen.
+
+Purpose: Home screen interactions: search bar tap, bag icon tap, and home-loaded checks.
+Role: Entry point for search and cart flows; used by tests and standalone script.
+Architecture: Inherits BasePage; uses HomePageLocators; consumed by conftest home_page fixture.
+"""
 import time
 
 from appium.webdriver.webdriver import WebDriver
@@ -11,7 +17,12 @@ from utils.logger import logger
 
 
 class HomePage(BasePage):
-    """Home screen page object."""
+    """
+    Myntra home screen: search bar, bag icon, and home visibility.
+
+    Provides tap_search (locator-only, with Y-band filter), tap_bag (with fallback),
+    and is_home_loaded / wait_until_home_visible for flow synchronization.
+    """
 
     def __init__(self, driver: WebDriver) -> None:
         super().__init__(driver)
@@ -19,14 +30,12 @@ class HomePage(BasePage):
 
     def tap_search(self) -> bool:
         """
-        Tap the search bar with strict, locator-only targeting.
-        Uses only the search widget resource-id / accessibility-id.
-        Does not tap any coordinates unless they belong to a located element.
+        Open the search interface by tapping the home screen search bar.
+
+        Uses only locator-based targeting and a vertical band filter to avoid
+        mis-taps; fails fast if the search bar is not found.
         """
         logger.info("Tapping search icon")
-
-        # Only use stable, specific locators for the search bar (no broad XPaths).
-        # Include both ID and tight XPath for the rounded search container.
         search_locators = [
             self.locators.SEARCH_CONTAINER,
             self.locators.SEARCH_CONTAINER_XPATH,
@@ -34,8 +43,6 @@ class HomePage(BasePage):
             self.locators.SEARCH_BAR_PLACEHOLDER,
             self.locators.SEARCH_ACCESSIBILITY_ID,
         ]
-
-        # The search bar lives near the top of the screen; never tap anything outside this band.
         try:
             size = self.driver.get_window_size()
             h = size["height"]
@@ -43,16 +50,12 @@ class HomePage(BasePage):
             h = 2400
         min_y = int(h * 0.08)
         max_y = int(h * 0.42)
-
-        # Wait for search bar to be visible (home can load slowly after app_launched).
         for loc in search_locators:
             try:
                 WebDriverWait(self.driver, 4).until(EC.visibility_of_element_located(loc))
                 break
             except Exception:
                 continue
-
-        # Poll for tap: longer window so we don't miss when UI is slow.
         deadline = time.time() + 4.0
         poll = 0.25
         while time.time() < deadline:
@@ -68,7 +71,6 @@ class HomePage(BasePage):
                         loc_ = el.location
                         sz = el.size
                         cy = loc_["y"] + sz["height"] // 2
-                        # Ignore any element whose vertical position is not in the search-bar band.
                         if cy < min_y or cy > max_y:
                             continue
                         try:
@@ -89,19 +91,17 @@ class HomePage(BasePage):
                     except Exception:
                         continue
             time.sleep(poll)
-
-        # Do not guess coordinates outside a located element – fail fast instead of mis-tapping.
         logger.warning("Search bar element not found by id/accessibility; tap_search returning False")
         return False
 
     def tap_bag(self, timeout: int = 5) -> bool:
         """
-        Tap the bag icon to open shopping bag.
-        Waits for home to be ready, tries multiple locators, then bottom-right fallback
-        so cart opens reliably after returning from login.
+        Open the shopping bag by tapping the bag icon in the bottom navigation.
+
+        Waits for home to be ready, tries multiple locators, then uses a
+        bottom-right coordinate fallback when returning from login.
         """
         logger.info("Tapping bag icon")
-        # Wait for home/bottom nav so bag icon is available
         try:
             WebDriverWait(self.driver, min(2, timeout)).until(
                 EC.visibility_of_element_located(self.locators.HOME_TAB)
@@ -125,7 +125,6 @@ class HomePage(BasePage):
                     return True
             except Exception:
                 continue
-        # Fallback: bottom-right tap (same as script when locators fail after return from login)
         try:
             time.sleep(0.2)
             sz = self.driver.get_window_size()
@@ -139,7 +138,7 @@ class HomePage(BasePage):
         return False
 
     def is_home_loaded(self, timeout: int = 8) -> bool:
-        """Verify home screen is loaded (search bar or Home tab visible)."""
+        """Return True if the home screen is loaded (search bar or Home tab visible)."""
         for loc in [
             self.locators.SEARCH_ICON,
             self.locators.SEARCH_CONTAINER,
@@ -151,7 +150,7 @@ class HomePage(BasePage):
         return False
 
     def wait_until_home_visible(self, timeout: int = 10) -> bool:
-        """Wait until home screen is visible. Tries search bar and Home tab locators."""
+        """Block until the home screen is visible (search bar or Home tab); returns True when found."""
         locs = [
             self.locators.SEARCH_CONTAINER,
             self.locators.SEARCH_CONTAINER_XPATH,

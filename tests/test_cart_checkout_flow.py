@@ -1,9 +1,10 @@
 """
-Cart & checkout flow tests (after add to bag):
-1. Navigate to home screen
-2. Open cart, increase quantity to 2, click Place Order
-3. Login screen opens → return back to home page
-4. Open cart again, click X (remove icon), click Remove button, verify empty cart, return to home
+Tests for cart and checkout flow after adding a product to the bag.
+
+Purpose: Validate navigate to home, open cart, set quantity, Place Order (login screen), back from login,
+  remove item, empty cart, and return to home.
+Role: Depends on add-to-bag setup (search → gender → sort → product → add to bag); uses script helpers and page objects.
+Architecture: No locators in tests; uses bag_page, home_page, popup_handler for assertions.
 """
 import pytest
 import time
@@ -26,7 +27,7 @@ from utils.logger import logger
 
 
 def _add_to_bag_and_get_to_product_page(driver, retries=2):
-    """Shared setup: search → Gender → Sort → open product → add to bag. Returns True if successful."""
+    """Shared setup: perform search, apply Gender and Sort, open first product, add to bag. Returns True if all steps succeed."""
     for attempt in range(retries):
         try:
             perform_search(driver, "shoes")
@@ -62,9 +63,7 @@ def _add_to_bag_and_get_to_product_page(driver, retries=2):
 
 @pytest.mark.regression
 def test_navigate_to_home_after_add_to_bag(app_launched, home_page):
-    """
-    1. After add to bag: navigate to home screen and verify home is visible.
-    """
+    """Verify that after adding to bag the user can navigate back to the home screen and home is visible."""
     assert _add_to_bag_and_get_to_product_page(app_launched), (
         "Add to bag setup failed: search → gender → sort → open product → add to bag did not complete"
     )
@@ -76,10 +75,7 @@ def test_navigate_to_home_after_add_to_bag(app_launched, home_page):
 
 @pytest.mark.regression
 def test_open_cart_increase_quantity_done(app_launched, home_page):
-    """
-    2a. Navigate to home, open cart, increase quantity to 2, click DONE (quantity).
-    Stops at cart screen — does not click Place Order.
-    """
+    """Verify that from home the user can open the cart, set quantity to 2, and click DONE (stays on cart screen)."""
     assert _add_to_bag_and_get_to_product_page(app_launched), (
         "Add to bag setup failed: search → gender → sort → open product → add to bag did not complete"
     )
@@ -93,9 +89,7 @@ def test_open_cart_increase_quantity_done(app_launched, home_page):
 
 @pytest.mark.regression
 def test_click_place_order_opens_login(app_launched, home_page, bag_page, popup_handler):
-    """
-    2b. Individual test: on cart (with qty 2 and DONE), click Place Order and verify login screen opens.
-    """
+    """Verify that from the cart screen clicking Place Order opens the login/signup screen."""
     assert _add_to_bag_and_get_to_product_page(app_launched), (
         "Add to bag setup failed: search → gender → sort → open product → add to bag did not complete"
     )
@@ -116,9 +110,7 @@ def test_click_place_order_opens_login(app_launched, home_page, bag_page, popup_
 
 @pytest.mark.regression
 def test_back_from_login_to_home(app_launched, home_page):
-    """
-    3. After Place Order, login screen opens; close it (X) and return back to home page.
-    """
+    """Verify that after Place Order the login screen can be closed and the user returns to the home page."""
     assert _add_to_bag_and_get_to_product_page(app_launched), (
         "Add to bag setup failed: search → gender → sort → open product → add to bag did not complete"
     )
@@ -135,10 +127,7 @@ def test_back_from_login_to_home(app_launched, home_page):
 
 @pytest.mark.regression
 def test_remove_product_from_cart(app_launched, home_page, bag_page):
-    """
-    4a. After back from login: open cart, click X (remove icon), click Remove button.
-    Verify cart is empty (no return home).
-    """
+    """Verify that after returning from login the user can open the cart, remove the item, and see an empty cart."""
     assert _add_to_bag_and_get_to_product_page(app_launched), (
         "Add to bag setup failed: search → gender → sort → open product → add to bag did not complete"
     )
@@ -161,9 +150,7 @@ def test_remove_product_from_cart(app_launched, home_page, bag_page):
 
 @pytest.mark.regression
 def test_verify_empty_cart_and_return_home(app_launched, home_page, bag_page):
-    """
-    4b. On cart (with item): remove item, verify empty cart, then return to home page.
-    """
+    """Verify that from the cart the user can remove the item, see empty cart, and return to the home page."""
     assert _add_to_bag_and_get_to_product_page(app_launched), (
         "Add to bag setup failed: search → gender → sort → open product → add to bag did not complete"
     )

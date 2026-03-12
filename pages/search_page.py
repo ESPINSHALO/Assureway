@@ -1,4 +1,10 @@
-"""Search page interactions for Myntra app."""
+"""
+Page Object for the Myntra search flow (search input, results, listing filters).
+
+Purpose: Search-from-home, enter term, tap first result, and listing visibility checks.
+Role: Used after HomePage.tap_search to complete search and validate listing (Gender/Sort).
+Architecture: Inherits BasePage; uses SearchPageLocators and HomePageLocators.
+"""
 import time
 
 from appium.webdriver.webdriver import WebDriver
@@ -11,7 +17,12 @@ from utils.logger import logger
 
 
 class SearchPage(BasePage):
-    """Search screen page object."""
+    """
+    Search screen and product listing: search input, results, Gender/Sort, first product.
+
+    Provides search_from_home, enter_search_term, tap_first_result, and
+    is_listing_visible / is_listing_gone for test synchronization.
+    """
 
     def __init__(self, driver: WebDriver) -> None:
         super().__init__(driver)
@@ -20,11 +31,7 @@ class SearchPage(BasePage):
 
     def search_from_home(self, search_text: str, timeout: int = 15) -> bool:
         """
-        Search from Myntra home using Appium locators and WebDriverWait.
-        1. Wait for home stable (bottom nav Home tab).
-        2. Click search container.
-        3. Wait for EditText, click it, clear, type, press Enter.
-        4. Wait for search results container.
+        Run a full search from home: wait for home, tap search, type term, submit, wait for results.
         """
         try:
             logger.info("Step 1: Waiting for home screen stable (Home tab)...")
@@ -117,7 +124,7 @@ class SearchPage(BasePage):
             return False
 
     def enter_search_term(self, search_text: str) -> bool:
-        """Enter search query. Many apps auto-search as you type."""
+        """Type the search query into the search input and submit (e.g. keycode Enter)."""
         try:
             element = self.find_element(self.locators.SEARCH_INPUT)
             element.clear()
@@ -130,23 +137,23 @@ class SearchPage(BasePage):
             return False
 
     def tap_first_result(self) -> bool:
-        """Tap the first product in search results."""
+        """Open the first product in the search results list."""
         logger.info("Tapping first search result")
         return self.tap(self.locators.FIRST_PRODUCT)
 
     def has_results(self) -> bool:
-        """Check if search returned results."""
+        """Return True if at least one search result (first product) is present."""
         return self.is_element_present(self.locators.FIRST_PRODUCT, timeout=10)
 
     def is_listing_visible(self, timeout: int = 5) -> bool:
-        """True if listing page is shown (SORT or GENDER button visible)."""
+        """Return True if the product listing is shown (SORT or GENDER button visible)."""
         return (
             self.is_element_present(self.locators.SORT_BUTTON, timeout=timeout)
             or self.is_element_present(self.locators.GENDER_BUTTON, timeout=timeout)
         )
 
     def is_listing_gone(self, timeout: int = 1) -> bool:
-        """True if listing left (SORT or GENDER no longer visible)."""
+        """Return True when the listing screen has been left (SORT/GENDER no longer visible)."""
         try:
             WebDriverWait(self.driver, timeout).until(
                 EC.invisibility_of_element_located(self.locators.SORT_BUTTON)

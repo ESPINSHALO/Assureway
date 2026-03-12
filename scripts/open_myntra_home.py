@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Automate opening Myntra app: launch, handle popups, confirm home,
-perform search, then keep app open or quit.
+Standalone automation script and shared flow helpers for the Myntra app.
 
-Flow: Launch → Handle popups → Confirm home (Home tab) → perform_search → Keep open → Quit.
+Purpose: Run a full user journey (launch → home → search → filters → product → add to bag → cart → checkout → back → remove → home)
+  or import helpers (perform_search, open_first_listing_product, add_to_bag_select_available_size, etc.) for pytest.
+Role: Single place for multi-step flows used by both the script and test_cart_checkout_flow / test_full_e2e_flow.
+Architecture: Uses driver_factory, page objects (HomePage, PopupHandler), and locators; no test logic.
 
-Run:
-  python scripts/open_myntra_home.py
-  python scripts/open_myntra_home.py --stay   # Keep open until Ctrl+C
-
-Prerequisites: Appium server running (appium), Android emulator with Myntra installed.
+Run: python scripts/open_myntra_home.py [--stay] [--no-male]
+Prerequisites: Appium server running, Android emulator with Myntra installed.
 """
 import argparse
 import sys
@@ -37,7 +36,7 @@ KEEP_OPEN_AFTER_SEARCH_SEC = 5
 
 
 def _tap_at(driver, x: int, y: int) -> bool:
-    """Perform a reliable tap at (x, y). Tries mobile gesture then W3C actions then tap()."""
+    """Tap at (x, y) using mobile gesture, W3C actions, or tap(); returns True if any succeeds."""
     try:
         driver.execute_script("mobile: clickGesture", {"x": int(x), "y": int(y)})
         return True
@@ -82,9 +81,7 @@ def _current_package(driver):
 
 
 def _close_running_screens_until_home(driver, popup_handler):
-    """
-    Dismiss popups so home is reached on first launch (no second app open).
-    """
+    """Dismiss popups until the app is on the home screen or the time limit is reached."""
     logger.info(f"Popup handling: {POPUP_HANDLING_SEC} seconds...")
     start = time.time()
     no_dismiss_count = 0
@@ -112,7 +109,7 @@ def _close_running_screens_until_home(driver, popup_handler):
 
 
 def _dismiss_profile_if_open(driver) -> bool:
-    """If profile page is open, press Back once to return to home. Returns True if back was pressed."""
+    """If the profile screen is open, press Back once to return to home; returns True if Back was sent."""
     try:
         if driver.current_package != APP_PACKAGE:
             return False
@@ -131,8 +128,10 @@ def _dismiss_profile_if_open(driver) -> bool:
 
 def perform_search(driver, query: str, timeout: int = 5) -> None:
     """
-    Pure Appium search. No ADB. Uses HomePage.tap_search() so all tests share the same robust search-bar click.
-    Raises if any required element is not found.
+    Tap the search bar, type the query, and wait for the product listing (SORT/GENDER visible).
+
+    Uses HomePage.tap_search() for consistent search-bar interaction across tests. Raises if the
+    search bar or search input cannot be found.
     """
     # If profile page interrupted, go back once
     _dismiss_profile_if_open(driver)

@@ -1,4 +1,10 @@
-"""Explicit wait utilities for stable automation."""
+"""
+Reusable explicit wait utilities for the automation framework.
+
+Purpose: Centralize WebDriverWait-based helpers so page objects avoid duplicated wait logic.
+Role: wait_for_element, wait_for_element_clickable, element_exists, safe_click used across pages.
+Architecture: Consumed by BasePage and PopupHandler; no dependency on page locators.
+"""
 from typing import Tuple
 from appium.webdriver.webdriver import WebDriver
 from appium.webdriver.common.appiumby import AppiumBy
@@ -14,10 +20,7 @@ def wait_for_element(
     locator: Tuple[str, str],
     timeout: int = 15,
 ) -> "WebElement":
-    """
-    Wait for element to be present and visible.
-    Returns the WebElement when found.
-    """
+    """Wait for the element to be present in the DOM; return it or raise on timeout."""
     try:
         element = WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located(locator)
@@ -34,7 +37,7 @@ def wait_for_element_clickable(
     locator: Tuple[str, str],
     timeout: int = 15,
 ) -> "WebElement":
-    """Wait for element to be clickable."""
+    """Wait for the element to be present and clickable; return it or raise on timeout."""
     try:
         element = WebDriverWait(driver, timeout).until(
             EC.element_to_be_clickable(locator)
@@ -51,7 +54,7 @@ def wait_for_element_visible(
     locator: Tuple[str, str],
     timeout: int = 15,
 ) -> "WebElement":
-    """Wait for element to be visible."""
+    """Wait for the element to be visible; return it or raise on timeout."""
     try:
         element = WebDriverWait(driver, timeout).until(
             EC.visibility_of_element_located(locator)
@@ -63,7 +66,7 @@ def wait_for_element_visible(
 
 
 def element_exists(driver: WebDriver, locator: Tuple[str, str], timeout: int = 5) -> bool:
-    """Check if element exists without raising."""
+    """Return True if the element is present within the timeout; False otherwise (no raise)."""
     try:
         WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located(locator)
@@ -74,9 +77,7 @@ def element_exists(driver: WebDriver, locator: Tuple[str, str], timeout: int = 5
 
 
 def safe_click(driver: WebDriver, locator: Tuple[str, str], timeout: int = 15) -> bool:
-    """
-    Safely click an element. Returns True on success, False on failure.
-    """
+    """Wait for the element to be clickable, then click; return True on success, False on failure."""
     try:
         element = wait_for_element_clickable(driver, locator, timeout)
         element.click()
