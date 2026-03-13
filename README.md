@@ -25,7 +25,7 @@ The framework is designed as a teaching-quality example of how to structure a mo
 A recorded run of the full automation flow  
 (launch → search → filters → product → add to bag → return home → open cart and increase quantity → Place Order → back from login to home → reopen cart → remove item → return home)  
 is available here:  
-[**Myntra Automation Framework – end-to-end flow**](https://drive.google.com/file/d/1ctDRyueELu1KiYrkCn2oTJiloiTShNNt/view?usp=sharing).
+[**Myntra Automation Framework – end-to-end flow**](https://drive.google.com/file/d/1Ju5bZ0qabU3XQ07YO8bb7cSg7l0DdSW8/view?usp=sharing).
 
 ---
 
@@ -138,7 +138,7 @@ Assureway/
 │   ├── smoke-tests-output.png   # Smoke run terminal output
 │   ├── html-tests-output.png    # HTML report generation example
 │   ├── myntra-automation-output.png # Standalone automation run output
-│   └── failure-test-output.png  # Failure screenshot from a test run
+│   └── failure-test-output.png  # Failure screenshot from a test run (due to flaky tests)
 ├── conftest.py                  # Pytest configuration, fixtures, hooks, and test ordering
 ├── pytest.ini                   # Pytest settings and markers (smoke, regression)
 ├── requirements.txt             # Python dependencies
@@ -349,7 +349,7 @@ The test suite covers the following core scenarios:
 
   - The filename includes the test name and a timestamp.
   - If the WebDriver cannot capture the screenshot, ADB fallback is used so a screenshot is still produced.
-  - A failure screenshot from a test run is kept in `docs/failure-test-output.png` for reference.
+  - A failure screenshot from a test run (due to flaky tests) is kept in `docs/failure-test-output.png` for reference.
 
 - **Logs**
 
