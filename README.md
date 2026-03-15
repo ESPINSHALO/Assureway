@@ -71,7 +71,7 @@ The overall framework architecture, Page Object Model design, test scenarios, an
 
 ## Framework Architecture
 
-The framework follows a Page Object Model (POM) and layered design:
+The framework follows a Page Object Model (POM) and layered design. The following diagram illustrates the layered architecture of the mobile automation framework and how different components interact during test execution.
 
 ```text
                      MOBILE AUTOMATION FRAMEWORK ARCHITECTURE
@@ -117,6 +117,7 @@ The framework follows a Page Object Model (POM) and layered design:
 │                      PAGE OBJECT MODEL (POM) LAYER                      │
 │                                                                         │
 │  pages/                                                                 │
+│  ├── BasePage                                                           │
 │  ├── HomePage                                                           │
 │  ├── SearchPage                                                         │
 │  ├── ProductPage                                                        │
