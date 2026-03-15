@@ -59,6 +59,125 @@ The overall framework architecture, Page Object Model design, test scenarios, an
 
 The framework follows a Page Object Model (POM) and layered design:
 
+```text
+                     MOBILE AUTOMATION FRAMEWORK ARCHITECTURE
+                        (Appium + Python + Pytest)
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         TEST EXECUTION LAYER                            │
+│                                                                         │
+│  Pytest Test Suites                                                     │
+│  ├── test_app_launch.py                                                 │
+│  ├── test_home_screen.py                                                │
+│  ├── test_search_flow.py                                                │
+│  ├── test_cart_checkout_flow.py                                         │
+│  └── test_full_e2e_flow.py                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   TEST ORCHESTRATION / FIXTURE LAYER                    │
+│                                                                         │
+│  conftest.py                                                            │
+│  • Driver fixture lifecycle                                             │
+│  • App launch and popup handling                                        │
+│  • Test ordering                                                        │
+│  • Screenshot capture on failure                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     AUTOMATION WORKFLOW LAYER                           │
+│                                                                         │
+│  scripts/open_myntra_home.py                                            │
+│  • perform_search()                                                     │
+│  • select_gender_male()                                                 │
+│  • select_sort_discounts()                                              │
+│  • open_first_listing_product()                                         │
+│  • add_to_bag_select_available_size()                                   │
+│  • open_cart_and_checkout()                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      PAGE OBJECT MODEL (POM) LAYER                      │
+│                                                                         │
+│  pages/                                                                 │
+│  ├── HomePage                                                           │
+│  ├── SearchPage                                                         │
+│  ├── ProductPage                                                        │
+│  ├── BagPage                                                            │
+│  └── PopupHandler                                                       │
+│                                                                         │
+│  • Encapsulates UI interactions                                         │
+│  • Separates locators from test logic                                   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        FRAMEWORK UTILITIES LAYER                        │
+│                                                                         │
+│  utils/                                                                 │
+│  ├── waits.py       → Explicit synchronization utilities                │
+│  └── logger.py      → Centralized logging system                        │
+│                                                                         │
+│  • Stable element interaction                                           │
+│  • Execution trace logging                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       DRIVER MANAGEMENT LAYER                           │
+│                                                                         │
+│  core/driver_factory.py                                                 │
+│                                                                         │
+│  • create_driver() → Initializes Appium WebDriver                       │
+│  • quit_driver()   → Handles session teardown                           │
+│                                                                         │
+│  Responsible for driver lifecycle management                            │
+└─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         CONFIGURATION LAYER                             │
+│                                                                         │
+│  config/capabilities.py                                                 │
+│                                                                         │
+│  • Platform configuration                                               │
+│  • Device configuration                                                 │
+│  • App package and activity                                             │
+│  • UiAutomator2 driver capabilities                                     │
+└─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+                        ┌──────────────────────────┐
+                        │      APPIUM SERVER       │
+                        │   Mobile Automation Hub  │
+                        └──────────────────────────┘
+                                   │
+                                   ▼
+                        ┌──────────────────────────┐
+                        │  ANDROID EMULATOR/DEVICE │
+                        │   (AVD / Real Device)    │
+                        └──────────────────────────┘
+                                   │
+                                   ▼
+                        ┌──────────────────────────┐
+                        │     MYNTRA MOBILE APP    │
+                        │  Application Under Test  │
+                        └──────────────────────────┘
+
+
+                 ┌──────────────────────────────────────────┐
+                 │             OUTPUT ARTIFACTS             │
+                 │                                          │
+                 │  reports/                                │
+                 │  ├── HTML Test Report                    │
+                 │  ├── Execution Logs                      │
+                 │  └── Failure Screenshots                 │
+                 └──────────────────────────────────────────┘
+```
+
 - **Page Object Model (POM)**  
   Each screen of the Myntra app has its own page class under `pages/`:
   - `HomePage` – home screen, search bar, bag icon
