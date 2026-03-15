@@ -98,7 +98,7 @@ The framework follows a Page Object Model (POM) and layered design:
 ## Project Structure
 
 ```text
-myntra-appium-automation-framework/
+Assureway/
 ├── config/
 │   ├── __init__.py              # Export configuration helpers
 │   └── capabilities.py          # Appium UiAutomator2 capabilities and app constants
@@ -153,7 +153,7 @@ myntra-appium-automation-framework/
 
 ```bash
 git clone https://github.com/ESPINSHALO/Assureway.git
-cd myntra-appium-automation-framework
+cd Assureway
 ```
 
 2. **Create and activate a virtual environment**
