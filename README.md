@@ -44,6 +44,20 @@ Dependencies are listed in `requirements.txt`.
 
 ---
 
+## Prerequisites
+
+Install and configure the following before running the automation:
+
+- **Python** 3.10+ with `pip`
+- **Android SDK** (platform-tools) so that `adb` is available on your `PATH`
+- **Android Studio** (for creating and running an AVD) or a physical Android device with USB debugging enabled
+- **Appium** 2.x (e.g. `npm install -g appium`); ensure the Appium server can be started and listens on `http://127.0.0.1:4723`
+- **Myntra Android app** installed on the emulator or device (via Play Store or APK)
+
+With these in place, follow the setup steps below to clone the repo, create a virtual environment, and install Python dependencies.
+
+---
+
 ## AI Assistance
 
 AI-assisted development tools were used during the development of this project to improve productivity and accelerate certain development tasks.
