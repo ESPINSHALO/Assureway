@@ -493,19 +493,10 @@ The test suite covers the following core scenarios:
 
 ## Notes
 
-- **Environment requirements**
-  - Python 3.10+ is recommended.
-  - Android emulator (AVD) must be running before executing tests or scripts.
-  - The Myntra Android app must be installed on the emulator.
-  - Appium server must be running and reachable at `http://127.0.0.1:4723`.
+- **ADB**  
+  `adb` (from Android SDK) must be on your `PATH` for device checks and for fallback screenshot capture when the driver session is dead.
 
-- **ADB availability**
-  - `adb` must be available on the system `PATH` for:
-    - basic device checks
-    - fallback screenshot capture when the driver is dead.
+- **Flakiness and timing**  
+  The framework uses explicit waits and shared flows to reduce flakiness. Some scenarios still depend on network and UI responsiveness; occasional retries or re-runs may be needed, as in real-world mobile automation.
 
-- **Flakiness and timing**
-  - The framework uses explicit waits, defensive checks, and shared flows to reduce flakiness.
-  - Some scenarios still depend on real network and UI responsiveness; occasional retries or re-runs may be expected, as in real-world mobile automation.
-
-This repository is intended to demonstrate a complete, maintainable Appium + Python + Pytest framework for a real Android application, with POM, centralized configuration, reusable flows, logging, screenshots, and clean project organization.
+This repository demonstrates a complete, maintainable Appium + Python + Pytest framework for the Myntra Android app, with POM, centralized configuration, reusable flows, logging, screenshots, and clean project organization.
