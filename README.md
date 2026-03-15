@@ -109,7 +109,7 @@ The framework follows a Page Object Model (POM) and layered design. The followin
 │  • select_sort_discounts()                                              │
 │  • open_first_listing_product()                                         │
 │  • add_to_bag_select_available_size()                                   │
-│  • open_cart_and_checkout()                                             │
+│  • open_cart_set_quantity_place_order()                                 │
 └─────────────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼
@@ -270,7 +270,7 @@ Assureway/
 │   ├── all-tests-output.png     # Full-suite terminal output
 │   ├── regression-tests-output.png  # Regression run terminal output
 │   ├── smoke-tests-output.png   # Smoke run terminal output
-│   ├── html-tests-output.png    # HTML report generation example
+│   ├── html-tests-output.png    # HTML report generation output from a test run
 │   ├── myntra-automation-output.png # Standalone automation run output
 │   └── failure-test-output.png  # Failure screenshot from a test run (due to flaky tests)
 ├── conftest.py                  # Pytest configuration, fixtures, hooks, and test ordering
