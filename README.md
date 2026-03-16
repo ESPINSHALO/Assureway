@@ -421,9 +421,11 @@ The test suite covers the following core scenarios:
   - `core/driver_factory.py` exposes:
     - `create_driver()` – creates a `WebDriver` with the configured capabilities.
     - `quit_driver()` – closes the driver gracefully.
+  - No implicit wait is set on the driver; all synchronization uses explicit waits (WebDriverWait / utils.waits).
   - `conftest.py` creates one driver per test via the `driver` fixture, with a short delay after quit to avoid session overlap issues.
 
 - **Explicit waits and robust interactions**
+  - The framework uses an explicit-wait-only strategy (no implicit waits).
   - `utils/waits.py` provides:
     - `wait_for_element`, `wait_for_element_clickable`, `wait_for_element_visible`
     - `element_exists` and `safe_click`
