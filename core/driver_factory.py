@@ -12,28 +12,24 @@ from utils.logger import logger
 
 
 APPIUM_SERVER_URL = "http://127.0.0.1:4723"
-DEFAULT_IMPLICIT_WAIT = 0
 
 
-def create_driver(
-    server_url: str = APPIUM_SERVER_URL,
-    implicit_wait: int = DEFAULT_IMPLICIT_WAIT,
-) -> WebDriver:
+def create_driver(server_url: str = APPIUM_SERVER_URL) -> WebDriver:
     """
     Create and return an Appium WebDriver instance for the Myntra app.
 
     Prerequisites: Appium server running, Android emulator with Myntra installed.
+    Uses no implicit wait; all synchronization must use explicit waits (WebDriverWait / utils.waits).
     """
     options = get_android_capabilities()
-    
+
     logger.info("Connecting to Appium server and launching Myntra app...")
     driver = webdriver.Remote(
         command_executor=server_url,
         options=options,
     )
-    driver.implicitly_wait(implicit_wait)
     logger.info("Driver created successfully")
-    
+
     return driver
 
 

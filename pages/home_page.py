@@ -61,6 +61,7 @@ class HomePage(BasePage):
         while time.time() < deadline:
             for loc in search_locators:
                 try:
+                    WebDriverWait(self.driver, 0.4).until(EC.presence_of_element_located(loc))
                     els = self.driver.find_elements(*loc)
                 except Exception:
                     continue
@@ -108,7 +109,12 @@ class HomePage(BasePage):
             )
         except Exception:
             pass
-        time.sleep(0.3)
+        try:
+            WebDriverWait(self.driver, 0.5).until(
+                EC.element_to_be_clickable(self.locators.BAG_ICON)
+            )
+        except Exception:
+            pass
         bag_locators = [
             self.locators.BAG_ICON,
             self.locators.BAG_ICON_ACCESSIBILITY,
@@ -126,7 +132,6 @@ class HomePage(BasePage):
             except Exception:
                 continue
         try:
-            time.sleep(0.2)
             sz = self.driver.get_window_size()
             w, h = sz["width"], sz["height"]
             x, y = int(w * 0.92), int(h * 0.96)

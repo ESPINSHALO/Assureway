@@ -5,8 +5,6 @@ Purpose: Search-from-home, enter term, tap first result, and listing visibility 
 Role: Used after HomePage.tap_search to complete search and validate listing (Gender/Sort).
 Architecture: Inherits BasePage; uses SearchPageLocators and HomePageLocators.
 """
-import time
-
 from appium.webdriver.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -65,7 +63,6 @@ class SearchPage(BasePage):
 
             logger.info("Step 3: Clicking search container...")
             search_container.click()
-            time.sleep(1.5)
 
             logger.info("Step 4: Waiting for search input EditText...")
             search_input = None
@@ -88,19 +85,21 @@ class SearchPage(BasePage):
 
             logger.info("Step 5: Clicking EditText explicitly...")
             search_input.click()
-            time.sleep(0.5)
+            try:
+                WebDriverWait(self.driver, 1).until(
+                    EC.visibility_of_element_located(self.locators.SEARCH_INPUT)
+                )
+            except Exception:
+                pass
 
             logger.info("Step 6: Clearing existing text...")
             search_input.clear()
-            time.sleep(0.3)
 
             logger.info("Step 7: Typing search term via send_keys...")
             search_input.send_keys(search_text)
-            time.sleep(0.5)
 
             logger.info("Step 8: Pressing Enter (keycode 66)...")
             self.driver.press_keycode(66)
-            time.sleep(1)
 
             logger.info("Step 9: Waiting for search results container...")
             try:

@@ -113,11 +113,24 @@ def _dismiss_profile_if_open(driver) -> bool:
     try:
         if driver.current_package != APP_PACKAGE:
             return False
+        from utils.waits import element_exists
+        if not element_exists(driver, PopupLocators.PROFILE_SCREEN_TITLE, timeout=0.5) and not element_exists(driver, PopupLocators.PROFILE_LOGIN_BUTTON, timeout=0.5):
+            return False
         profile_title = driver.find_elements(*PopupLocators.PROFILE_SCREEN_TITLE)
         profile_login = driver.find_elements(*PopupLocators.PROFILE_LOGIN_BUTTON)
         if (profile_title and profile_title[0].is_displayed()) or (profile_login and profile_login[0].is_displayed()):
             driver.press_keycode(4)  # KEYCODE_BACK
-            time.sleep(0.6)
+            try:
+                WebDriverWait(driver, 1).until(
+                    EC.invisibility_of_element_located(PopupLocators.PROFILE_SCREEN_TITLE)
+                )
+            except Exception:
+                try:
+                    WebDriverWait(driver, 1).until(
+                        EC.invisibility_of_element_located(PopupLocators.PROFILE_LOGIN_BUTTON)
+                    )
+                except Exception:
+                    pass
             print("Profile page closed (Back once)")
             logger.info("Profile page closed (Back once)")
             return True
@@ -140,11 +153,15 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
     home = HomePage(driver)
     search_tapped = home.tap_search()
     if not search_tapped:
-        time.sleep(0.3)
+        try:
+            WebDriverWait(driver, 0.5).until(
+                EC.presence_of_element_located((AppiumBy.ID, "com.myntra.android:id/search_input"))
+            )
+        except Exception:
+            pass
         search_tapped = home.tap_search()
     if not search_tapped:
         raise Exception("Search bar could not be tapped (tap_search failed twice)")
-    time.sleep(0.2)
 
     # E. Wait for search screen (EditText).
     def _find_search_input():
@@ -173,21 +190,17 @@ def perform_search(driver, query: str, timeout: int = 5) -> None:
 
     # F & G. Click inside EditText so we can type
     search_input.click()
-    time.sleep(0.1)
 
     # H. Clear the field
     search_input.clear()
-    time.sleep(0.05)
 
     # I. send_keys(query)
     search_input.send_keys(query)
-    time.sleep(0.1)
 
     # J. Submit
     driver.press_keycode(66)
-    time.sleep(0.3)
 
-    # K. Wait for results page (SORT/GENDER appear on listing; recycler IDs may vary by app version)
+    # K. Wait for results page (explicit wait replaces fixed sleep) (SORT/GENDER appear on listing; recycler IDs may vary by app version)
     results_locators = [
         SearchPageLocators.SORT_BUTTON,  # Listing page has SORT at bottom
         SearchPageLocators.GENDER_BUTTON,  # Listing has GENDER filter
@@ -221,11 +234,15 @@ def select_gender_male(driver) -> bool:
         gender_btn = wait.until(EC.element_to_be_clickable(SearchPageLocators.GENDER_BUTTON))
         gender_btn.click()
         logger.info("Gender button tapped")
-        time.sleep(0.15)
         male_opt = wait.until(EC.element_to_be_clickable(SearchPageLocators.GENDER_MALE))
         male_opt.click()
         logger.info("Male selected")
-        time.sleep(0.25)
+        try:
+            WebDriverWait(driver, 0.5).until(
+                EC.presence_of_element_located(SearchPageLocators.SORT_BUTTON)
+            )
+        except Exception:
+            pass
         return True
     except Exception as e:
         logger.warning(f"Gender Male: {e}")
@@ -239,7 +256,6 @@ def select_sort_discounts(driver) -> bool:
         sort_btn = wait.until(EC.element_to_be_clickable(SearchPageLocators.SORT_BUTTON))
         sort_btn.click()
         logger.info("Sort button tapped")
-        time.sleep(0.35)
         wait_disc = WebDriverWait(driver, 2.0)
         for discount_loc in [
             SearchPageLocators.SORT_DISCOUNTS,
@@ -251,7 +267,6 @@ def select_sort_discounts(driver) -> bool:
                 if el and el.is_displayed():
                     el.click()
                     logger.info("Discounts selected")
-                    time.sleep(0.2)
                     return True
             except Exception:
                 continue
@@ -261,16 +276,47 @@ def select_sort_discounts(driver) -> bool:
 
 
 def open_first_listing_product(driver) -> bool:
-    """On listing page (after Gender/Sort): open first product. Returns True if product page opened."""
+    """On listing page: open the first shoe — the product card directly above the MEN/SORT bar.
+    Banners (REDTAPE, discount, etc.) are above; we tap only the left card just above gender icon."""
+    try:
+        size = driver.get_window_size()
+        screen_w, screen_h = size["width"], size["height"]
+    except Exception:
+        screen_w, screen_h = 1080, 2400
+    # 1) Tap exactly above MEN bar: find MEN element, tap left card just above it
+    try:
+        men_el = WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located(SearchPageLocators.MEN_BOTTOM_BAR)
+        )
+        men_loc = men_el.location
+        men_y = men_loc["y"]
+        # Tap left column, slightly above MEN bar so we hit the product card above it
+        y_above_men = max(men_y - 180, int(screen_h * 0.25))
+        x_left = int(screen_w * 0.25)
+        if _tap_at(driver, x_left, y_above_men):
+            logger.info("First product opened (tap above MEN)")
+            return True
+    except Exception:
+        pass
+    # 2) Fixed y: left product card row just above bottom nav
+    for y_pct in [0.78, 0.76, 0.80, 0.74]:
+        y = int(screen_h * y_pct)
+        x = int(screen_w * 0.25)
+        if _tap_at(driver, x, y):
+            logger.info("First product opened (tap)")
+            return True
+    # Fallback: locators for product row above bottom bar
     wait_first = WebDriverWait(driver, 3.5)
     for loc in [
-        SearchPageLocators.FIRST_GENDER_SHOE_TOP_RATED,
+        SearchPageLocators.FIRST_PRODUCT_LEFT_TOP,
+        SearchPageLocators.FIRST_PRODUCT_LEFT_TOP_ALT,
         SearchPageLocators.FIRST_PRODUCT_GRID_ITEM,
         SearchPageLocators.FIRST_PRODUCT_GRID_ITEM_ALT,
         SearchPageLocators.FIRST_PRODUCT_GRID_FROM_THIRD,
         SearchPageLocators.FIRST_PRODUCT_CARD,
         SearchPageLocators.FIRST_PRODUCT_CARD_ALT,
         SearchPageLocators.FIRST_SHOE_PRODUCT,
+        SearchPageLocators.FIRST_GENDER_SHOE_TOP_RATED,
     ]:
         try:
             el = wait_first.until(EC.element_to_be_clickable(loc))
@@ -280,19 +326,6 @@ def open_first_listing_product(driver) -> bool:
                 return True
         except Exception:
             continue
-    # Fallback: tap gender shoe row (y 58-68%) — below silver/REDTAPE row, above MEN/SORT/FILTER bar
-    try:
-        size = driver.get_window_size()
-        screen_w, screen_h = size["width"], size["height"]
-    except Exception:
-        screen_w, screen_h = 1080, 2400
-    # Fallback: tap shoe row just above MEN/SORT/FILTER bar (below promo/top area, above bottom bar)
-    for y_pct in [0.68, 0.64, 0.72, 0.60]:
-        y = int(screen_h * y_pct)
-        x = int(screen_w * 0.25)  # Left column shoe image
-        if _tap_at(driver, x, y):
-            logger.info("First product opened (tap)")
-            return True
     return False
 
 
@@ -307,12 +340,16 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
             gender_btn.click()
             print("Gender button tapped")
             logger.info("Gender button tapped")
-            time.sleep(0.1)
             male_opt = wait.until(EC.element_to_be_clickable(SearchPageLocators.GENDER_MALE))
             male_opt.click()
             print("Male selected")
             logger.info("Male selected")
-            time.sleep(0.25)  # Brief wait for listing after gender filter
+            try:
+                WebDriverWait(driver, 0.5).until(
+                    EC.presence_of_element_located(SearchPageLocators.SORT_BUTTON)
+                )
+            except Exception:
+                pass
         except Exception as e:
             logger.warning(f"Gender Male: {e}")
 
@@ -325,7 +362,12 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
     except Exception as e:
         logger.warning(f"Sort button: {e}")
         return
-    time.sleep(0.15)  # Let sort bottom sheet open
+    try:
+        WebDriverWait(driver, 1).until(
+            EC.element_to_be_clickable(SearchPageLocators.SORT_DISCOUNTS)
+        )
+    except Exception:
+        pass
     # Tap "Discounts" in the sort bottom sheet (Sort by page)
     discounts_clicked = False
     wait_disc = WebDriverWait(driver, 0.8)
@@ -348,7 +390,6 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
             continue
     if not discounts_clicked:
         logger.warning("Discounts option not found on sort page; continuing to first shoe.")
-    time.sleep(0.15)
 
     # Use the same first-product logic as test_search_flow (avoids clicking banner; targets shoe row)
     if open_first_listing_product(driver):
@@ -361,7 +402,10 @@ def sort_price_low_to_high_and_open_first_shoe(driver, select_male: bool = True)
 def add_to_bag_select_available_size(driver) -> None:
     """On product page: click Add to bag → size pop-up opens → click available size → click DONE."""
     wait = WebDriverWait(driver, 5)
-    time.sleep(0.4)
+    try:
+        wait.until(EC.element_to_be_clickable(ProductPageLocators.ADD_TO_BAG))
+    except Exception:
+        pass
 
     # Step 1: Click "Add to bag" first — this opens the "Select Size (UK Size)" pop-up
     add_clicked = False
@@ -384,7 +428,12 @@ def add_to_bag_select_available_size(driver) -> None:
             sz = driver.get_window_size()
             w, h = sz["width"], sz["height"]
             driver.swipe(w // 2, int(h * 0.7), w // 2, int(h * 0.35), 400)
-            time.sleep(0.3)
+            try:
+                WebDriverWait(driver, 0.5).until(
+                    EC.element_to_be_clickable(ProductPageLocators.ADD_TO_BAG)
+                )
+            except Exception:
+                pass
             for add_loc in [
                 ProductPageLocators.ADD_TO_BAG,
                 ProductPageLocators.ADD_TO_BAG_TEXT,
@@ -415,7 +464,17 @@ def add_to_bag_select_available_size(driver) -> None:
         logger.warning("Add to bag button not found; skipping size pop-up flow.")
         return
 
-    time.sleep(0.5)  # Wait for Select Size pop-up to be ready
+    try:
+        WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located(ProductPageLocators.SIZE_POPUP_TITLE)
+        )
+    except Exception:
+        try:
+            WebDriverWait(driver, 1).until(
+                EC.presence_of_element_located(ProductPageLocators.SIZE_OPTION)
+            )
+        except Exception:
+            pass
 
     # Step 2: In the pop-up, click the first available size (try 5, then 6, 7, 8, 9, 10; only non-greyed are clickable)
     size_clicked = False
@@ -460,7 +519,12 @@ def add_to_bag_select_available_size(driver) -> None:
         except Exception:
             pass
 
-    time.sleep(0.8)  # Let size selection register before DONE appears
+    try:
+        WebDriverWait(driver, 2).until(
+            EC.element_to_be_clickable(ProductPageLocators.SIZE_DONE_BUTTON)
+        )
+    except Exception:
+        pass
 
     # Step 3: Click DONE to confirm and add to bag (multiple strategies so it always clicks)
     done_clicked = False
@@ -533,20 +597,14 @@ def return_to_home(driver, back_presses: int = 3, max_extra_back: int = 3) -> bo
 
 def _return_to_home(driver, back_presses: int = 3, max_extra_back: int = 3) -> bool:
     """Press back 3 times (top-left) to return to home. If still not home, press back up to max_extra_back more."""
+    from utils.waits import element_exists
+
     def _is_home():
-        try:
-            return driver.find_element(*HomePageLocators.HOME_TAB).is_displayed()
-        except Exception:
-            pass
-        try:
-            return driver.find_element(*HomePageLocators.HOME_INDICATOR).is_displayed()
-        except Exception:
-            pass
-        try:
-            return driver.find_element(*HomePageLocators.HOME_TAB_ALT).is_displayed()
-        except Exception:
-            pass
-        return False
+        return (
+            element_exists(driver, HomePageLocators.HOME_TAB, timeout=0)
+            or element_exists(driver, HomePageLocators.HOME_INDICATOR, timeout=0)
+            or element_exists(driver, HomePageLocators.HOME_TAB_ALT, timeout=0)
+        )
 
     for _ in range(back_presses):
         try:
@@ -727,13 +785,10 @@ def empty_cart_and_return_home(driver) -> None:
         logger.warning("remove_product_from_cart did not empty cart; will still try to return home")
     time.sleep(0.2)
     # Return to Home: press Back until Home tab is visible
+    from utils.waits import element_exists
+
     def _on_home():
-        for loc in [HomePageLocators.HOME_TAB, HomePageLocators.HOME_TAB_ALT]:
-            try:
-                return driver.find_element(*loc).is_displayed()
-            except Exception:
-                continue
-        return False
+        return element_exists(driver, HomePageLocators.HOME_TAB, timeout=0) or element_exists(driver, HomePageLocators.HOME_TAB_ALT, timeout=0)
 
     for _ in range(4):
         if _on_home():
@@ -854,7 +909,8 @@ def _open_cart_and_set_quantity(driver, quantity: int, skip_return_to_home: bool
             done_btn.click()
         except Exception:
             try:
-                done_btn = driver.find_element(AppiumBy.XPATH, "//*[contains(@text,'DONE') or contains(@text,'Done')]")
+                done_loc = (AppiumBy.XPATH, "//*[contains(@text,'DONE') or contains(@text,'Done')]")
+                done_btn = WebDriverWait(driver, 1).until(EC.element_to_be_clickable(done_loc))
                 done_btn.click()
             except Exception:
                 pass
@@ -1053,7 +1109,8 @@ def open_cart_increase_quantity_and_checkout(driver, quantity: int = 2) -> None:
             logger.info("DONE clicked (quantity confirmed)")
         except Exception:
             try:
-                done_btn = driver.find_element(AppiumBy.XPATH, "//*[contains(@text,'DONE') or contains(@text,'Done')]")
+                done_loc = (AppiumBy.XPATH, "//*[contains(@text,'DONE') or contains(@text,'Done')]")
+                done_btn = WebDriverWait(driver, 1).until(EC.element_to_be_clickable(done_loc))
                 done_btn.click()
                 print("DONE clicked")
             except Exception:

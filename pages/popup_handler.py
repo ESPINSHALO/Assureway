@@ -5,14 +5,13 @@ Purpose: Dismiss onboarding, permission, profile, and login screens so tests rea
 Role: Used by app_launched fixture and tests that need to close login after Place Order.
 Architecture: Inherits BasePage; uses PopupLocators and HomePageLocators for detection.
 """
-import time
-
 from appium.webdriver.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from config.capabilities import APP_PACKAGE
 from pages.base_page import BasePage
+from pages.home_page import HomePage
 from pages.locators import PopupLocators, HomePageLocators
 from utils.logger import logger
 from utils.waits import element_exists, safe_click
@@ -43,7 +42,12 @@ class PopupHandler(BasePage):
                 )
                 if on_profile:
                     self.tap_top_left_back()
-                    time.sleep(0.3)
+                    try:
+                        WebDriverWait(self.driver, 1).until(
+                            EC.invisibility_of_element_located(self.locators.PROFILE_SCREEN_TITLE)
+                        )
+                    except Exception:
+                        pass
                     logger.info("Profile: tapped back")
                     return True
         except Exception as e:
@@ -65,7 +69,17 @@ class PopupHandler(BasePage):
         try:
             if self.driver.current_package == APP_PACKAGE:
                 if self.tap_top_right_close():
-                    time.sleep(0.5)
+                    try:
+                        WebDriverWait(self.driver, 1).until(
+                            EC.visibility_of_element_located(HomePageLocators.HOME_INDICATOR)
+                        )
+                    except Exception:
+                        try:
+                            WebDriverWait(self.driver, 1).until(
+                                EC.visibility_of_element_located(HomePageLocators.SEARCH_CONTAINER)
+                            )
+                        except Exception:
+                            pass
                     logger.info("Tapped top-right close (onboarding)")
                     return True
         except Exception as e:
@@ -95,7 +109,12 @@ class PopupHandler(BasePage):
             if element_exists(self.driver, locator, timeout=1):
                 if safe_click(self.driver, locator, timeout=2):
                     logger.info(f"Dismissed using {locator[0]}")
-                    time.sleep(0.5)
+                    try:
+                        WebDriverWait(self.driver, 1).until(
+                            EC.invisibility_of_element_located(locator)
+                        )
+                    except Exception:
+                        pass
                     return True
         return False
 
@@ -124,4 +143,5 @@ class PopupHandler(BasePage):
         for _ in range(max_attempts):
             if not self.dismiss_popup():
                 break
-            time.sleep(0.5)
+            if HomePage(self.driver).wait_until_home_visible(timeout=1):
+                break

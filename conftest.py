@@ -17,10 +17,14 @@ from datetime import datetime
 
 import pytest
 
+from appium.webdriver.common.appiumby import AppiumBy
 from appium.webdriver.webdriver import WebDriver
 from config.capabilities import APP_PACKAGE
 from core.driver_factory import create_driver, quit_driver
 from pages import HomePage, SearchPage, ProductPage, BagPage, PopupHandler
+from pages.locators import HomePageLocators
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 from utils.logger import logger
 
 SCREENSHOTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports", "screenshots")
@@ -226,25 +230,37 @@ def app_launched(driver: WebDriver, popup_handler: PopupHandler):
 
     Use when a test assumes the app is already on home (e.g. search or cart tests).
     """
-    time.sleep(2.5)
+    time.sleep(2.5)  # Device/session startup timing (unavoidable)
     try:
         driver.activate_app(APP_PACKAGE)
     except Exception:
         pass
-    time.sleep(0.5)
+    try:
+        WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located((AppiumBy.CLASS_NAME, "android.widget.FrameLayout"))
+        )
+    except Exception:
+        pass
     _press_back_safe(driver)
-    time.sleep(0.5)
+    try:
+        WebDriverWait(driver, 1).until(
+            EC.presence_of_element_located(HomePageLocators.HOME_TAB)
+        )
+    except Exception:
+        try:
+            WebDriverWait(driver, 1).until(
+                EC.presence_of_element_located(HomePageLocators.SEARCH_CONTAINER)
+            )
+        except Exception:
+            pass
     try:
         popup_handler.handle_initial_popups()
     except Exception:
         pass
-    time.sleep(0.5)
     if not _wait_for_home(driver, timeout_per_loc=3):
         _press_back_safe(driver)
-        time.sleep(0.5)
         try:
             popup_handler.dismiss_popup()
-            time.sleep(0.5)
         except Exception:
             pass
         _wait_for_home(driver, timeout_per_loc=2)
